@@ -1,4 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
+    const API_URL = window.API_URL || '/api';
+    
     const editProfileBtn = document.getElementById('editProfileBtn');
     const editProfileModal = document.getElementById('editProfileModal');
     const closeEditProfileModal = document.getElementById('closeEditProfileModal');
@@ -280,8 +282,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 const profilePoints = document.getElementById('profilePoints');
                 if (profilePoints) profilePoints.textContent = user.points || 0;
 
-                const profileSavedCount = document.getElementById('profileSavedCount');
-                if (profileSavedCount) profileSavedCount.textContent = user.saved_places || 0;
+                const profilePlaceCount = document.getElementById('profilePlaceCount');
+                if (profilePlaceCount) profilePlaceCount.textContent = user.places_count || 0;
 
                 const profileReviewCount = document.getElementById('profileReviewCount');
                 if (profileReviewCount) profileReviewCount.textContent = user.review_count || 0;
@@ -290,31 +292,37 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (rewardsTabPoints) rewardsTabPoints.textContent = user.points || 0;
 
                 // Sync latest data from server
-                fetch(`${window.API_URL || '/api'}/auth.php`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action: 'get_stats', user_id: user.id })
-                })
-                    .then(r => r.json())
-                    .then(res => {
-                        if (res.status === 'success' && res.stats) {
-                            user.points = res.stats.points;
-                            user.saved_places = res.stats.saved;
-                            user.review_count = res.stats.reviews;
-                            user.follower_count = res.stats.followers;
+                if (window.supabaseClient) {
+                    Promise.all([
+                        window.supabaseClient.from('profile').select('points').eq('id', user.id).single(),
+                        window.supabaseClient.from('places').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
+                        window.supabaseClient.from('reviews').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
+                        window.supabaseClient.from('follows').select('*', { count: 'exact', head: true }).eq('followed_id', user.id)
+                    ]).then(([
+                        { data: profileData },
+                        { count: placesCount },
+                        { count: reviewsCount },
+                        { count: followersCount }
+                    ]) => {
+                        user.points = profileData?.points || 0;
+                        user.places_count = placesCount || 0;
+                        user.review_count = reviewsCount || 0;
+                        user.follower_count = followersCount || 0;
 
-                            localStorage.setItem('user_vtkt', JSON.stringify(user));
+                        localStorage.setItem('user_vtkt', JSON.stringify(user));
 
-                            if (profilePoints) profilePoints.textContent = user.points;
-                            if (rewardsTabPoints) rewardsTabPoints.textContent = user.points;
-                            if (profileSavedCount) profileSavedCount.textContent = user.saved_places;
-                            if (profileReviewCount) profileReviewCount.textContent = user.review_count;
+                        if (profilePoints) profilePoints.textContent = user.points;
+                        if (rewardsTabPoints) rewardsTabPoints.textContent = user.points;
+                        if (profilePlaceCount) profilePlaceCount.textContent = user.places_count;
+                        if (profileReviewCount) profileReviewCount.textContent = user.review_count;
 
-                            const followersEl = document.getElementById('profileFollowerCount');
-                            if (followersEl) followersEl.textContent = user.follower_count;
-                        }
-                    })
-                    .catch(e => console.log('Không tải được live stats:', e));
+                        const followersEl = document.getElementById('profileFollowerCount');
+                        if (followersEl) followersEl.textContent = user.follower_count;
+                    }).catch(err => {
+                        console.error("Lỗi lấy thông số:", err);
+                    });
+                }
+
 
                 document.getElementById('profileAvatar').src = user.avatar && user.avatar !== 'default_avatar.png' ? user.avatar : 'https://ui-avatars.com/api/?name=' + encodeURIComponent(user.fullname || user.username) + '&background=ff5500&color=fff&rounded=true&bold=true';
             }
@@ -787,17 +795,27 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function loadNotifications() {
-        const user = JSON.parse(localStorage.getItem('user_vtkt'));
-        if (!user) return;
+        const user = window.currentUser || JSON.parse(localStorage.getItem('user_vtkt'));
+        if (!user || !window.supabaseClient) return;
 
         const list = document.getElementById('notificationsList');
+        if (!list) return;
         list.innerHTML = '<div class="text-center py-6"><i class="fa-solid fa-spinner fa-spin text-2xl text-primary"></i></div>';
 
         try {
-            const res = await fetch(`${window.API_URL || '/api'}/interactions.php?action=get_notifications&user_id=${user.id}`);
-            const notifs = await res.json();
+            // Note: We might not have actor_name/actor_avatar directly if we don't join profile.
+            // But we can just fetch notifications and assume basic info or join if configured.
+            // Using a simple query for now. If table is missing, it will handle error gracefully.
+            const { data: notifs, error } = await window.supabaseClient
+                .from('notifications')
+                .select('*')
+                .eq('user_id', user.id)
+                .order('created_at', { ascending: false })
+                .limit(20);
 
-            if (notifs.length === 0) {
+            if (error) throw error;
+
+            if (!notifs || notifs.length === 0) {
                 list.innerHTML = `
                 <div class="flex flex-col items-center justify-center h-48 text-gray-400">
                     <i class="fa-regular fa-bell-slash text-4xl mb-3"></i>
@@ -828,11 +846,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 } else if (n.type === 'approved') {
                     icon = '<i class="fa-solid fa-check-circle text-green-500"></i>';
                     text = n.message || `Địa điểm của bạn đã được duyệt!(+15 điểm)`;
+                } else {
+                    icon = '<i class="fa-solid fa-bell text-gray-500"></i>';
+                    text = n.message || `Thông báo.`;
                 }
 
                 const el = document.createElement('div');
-                el.className = `p-4 rounded-xl flex gap-3 items-start border ${n.is_read == 0 ? 'bg-orange-50/50 border-orange-100' : 'bg-white border-gray-100 dark:bg-darkCard dark:border-[#2c2c2e]'}`;
+                el.className = `p-4 rounded-xl flex gap-3 items-start border ${n.is_read == 0 || n.is_read === false ? 'bg-orange-50/50 border-orange-100 dark:bg-orange-900/20 dark:border-orange-800/30' : 'bg-white border-gray-100 dark:bg-darkCard dark:border-[#2c2c2e]'}`;
 
+                // Use simple fallbacks if actor info is missing
                 const actorName = n.actor_name || 'Hệ thống';
                 const avatarUrl = (n.actor_avatar && n.actor_avatar !== 'default_avatar.png') ?
                     (n.actor_avatar.startsWith('http') ? n.actor_avatar : `${window.API_URL || '/api'}/../${n.actor_avatar}`) :
@@ -847,34 +869,49 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                     <div>
                         <p class="text-[13px] text-gray-800 dark:text-gray-200">
-                            ${!isSystemMessage ? `<span class="font-bold text-[#ff5500]">${n.actor_name}</span> ` : ''}${text}
+                            ${!isSystemMessage ? `<span class="font-bold text-[#ff5500]">${actorName}</span> ` : ''}${text}
                         </p>
-                        <p class="text-[10px] text-gray-400 mt-1">${window.timeAgo ? window.timeAgo(n.created_at) : n.created_at}</p>
+                        <p class="text-[10px] text-gray-400 mt-1">${window.timeAgo ? window.timeAgo(n.created_at) : (new Date(n.created_at)).toLocaleString()}</p>
                     </div>
                 `;
                 list.appendChild(el);
             });
 
-            if (notifBadge && notifs.some(n => n.is_read == 0)) {
-                notifBadge.classList.remove('hidden');
-            } else if (notifBadge) {
-                notifBadge.classList.add('hidden');
+            // Mark unread as read if any
+            const unreadIds = notifs.filter(n => (n.is_read == 0 || n.is_read === false)).map(n => n.id);
+            if (unreadIds.length > 0) {
+                window.supabaseClient.from('notifications')
+                    .update({ is_read: true })
+                    .in('id', unreadIds)
+                    .then(() => {
+                        if (notifBadge) notifBadge.classList.add('hidden');
+                    });
+            } else {
+                if (notifBadge) notifBadge.classList.add('hidden');
             }
+
         } catch (e) {
             console.error("Notifications Fetch Error:", e);
-            list.innerHTML = '<p class="text-center text-red-500 py-6">Lỗi kết nối</p>';
+            list.innerHTML = '<p class="text-center text-red-500 py-6 text-sm">Chưa có thông báo nào từ CSDL.</p>';
         }
     }
+    window.loadNotifications = loadNotifications;
 
     // Check notifications periodically
     async function checkNotifications() {
-        const user = JSON.parse(localStorage.getItem('user_vtkt'));
-        if (!user) return;
+        const user = window.currentUser || JSON.parse(localStorage.getItem('user_vtkt'));
+        if (!user || !window.supabaseClient) return;
 
         try {
-            const res = await fetch(`${window.API_URL || '/api'}/interactions.php?action=get_notifications&user_id=${user.id}`);
-            const notifs = await res.json();
-            const unread = notifs.filter(n => n.is_read == 0).length;
+            const { count, error } = await window.supabaseClient
+                .from('notifications')
+                .select('*', { count: 'exact', head: true })
+                .eq('user_id', user.id)
+                .in('is_read', [false, 0]);
+
+            if (error) throw error;
+            const unread = count || 0;
+            
             if (unread > 0 && notifBadge) {
                 notifBadge.classList.remove('hidden');
                 notifBadge.querySelector('span:last-child').textContent = unread > 9 ? '9+' : unread;

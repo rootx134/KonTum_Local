@@ -304,14 +304,7 @@
         <h1 class="font-black text-xl tracking-tight flex items-center gap-2"><img
                 src="https://fc.kontumplus.com/favicon.png" class="w-6 h-6 rounded"> Địa Điểm Kon Tum</h1>
         <div class="flex items-center gap-4">
-            <button id="btnOpenNotifications"
-                class="bg-orange-50 text-[#ff5500] hover:bg-orange-100 w-10 h-10 rounded-full flex items-center justify-center transition relative">
-                <i class="fa-solid fa-bell text-lg"></i>
-                <span id="notifBadge" class="absolute -top-1 -right-1 flex h-3 w-3 hidden">
-                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                    <span class="relative inline-flex rounded-full h-3 w-3 bg-red-500 text-[8px] font-bold text-white items-center justify-center">0</span>
-                </span>
-            </button>
+            <!-- Top Right slot available for future use -->
         </div>
     </div>
 
@@ -400,40 +393,18 @@
             </div>
         </section>
 
-        <!-- Tab: Đổi Thưởng -->
-        <section id="tab-rewards" class="tab-content px-4 py-8 text-center space-y-6">
-            <div
-                class="w-32 h-32 mx-auto rounded-full bg-gradient-to-b from-[#fff5f0] to-white dark:from-[#2c1a12] dark:to-darkCard flex items-center justify-center shadow-inner border border-[#ffe0d1] dark:border-[#4d2614]">
-                <i class="fa-solid fa-gift text-6xl text-[#ff5500]"></i>
+        <!-- Tab: Thông Báo -->
+        <section id="tab-notifications" class="tab-content py-6 text-center space-y-4">
+            <div class="px-6 flex justify-between items-center mb-2">
+                <h2 class="text-2xl font-black tracking-tight dark:text-gray-100">Thông báo</h2>
             </div>
-            <h2 class="text-2xl font-bold mt-2">Tính năng Đổi Thưởng</h2>
-            <p class="text-gray-500">Chức năng tích lũy điểm đổi lấy eVoucher đang được phát triển. Bạn sẽ sớm đổi được
-                quà từ điểm thưởng đóng góp!</p>
-            <div class="flex gap-4 w-full mt-6 max-w-sm mx-auto items-stretch">
-                <!-- Điểm Box -->
-                <div
-                    class="flex-1 flex flex-col items-center justify-center py-6 px-4 rounded-3xl bg-gradient-to-b from-[#fff5f0] to-white dark:from-[#2c1a12] dark:to-darkCard border border-[#ffe0d1] dark:border-[#4d2614] shadow-sm relative overflow-hidden">
-                    <div class="absolute top-0 right-0 w-24 h-24 bg-[#ff5500] rounded-full blur-3xl opacity-10"></div>
-                    <span
-                        class="text-[13px] font-bold text-gray-500 dark:text-gray-400 mb-2 z-10 uppercase tracking-wide">Điểm
-                        tích lũy</span>
-                    <div class="flex items-end gap-1.5 z-10">
-                        <span id="rewardsTabPoints"
-                            class="text-5xl font-black text-[#ff5500] leading-none tracking-tighter">0</span>
-                        <i class="fa-solid fa-bolt-lightning text-[#ff5500] text-3xl mb-1"></i>
+            <div class="px-4 text-left">
+                <div class="flex-1 overflow-y-auto space-y-3" id="notificationsList">
+                    <div class="flex flex-col items-center justify-center h-48 text-gray-400">
+                        <i class="fa-regular fa-bell-slash text-4xl mb-3"></i>
+                        <p>Chưa có thông báo nào</p>
                     </div>
                 </div>
-
-                <!-- Nút Lịch Sử Bên Cạnh -->
-                <button id="btnOpenPointsHistory"
-                    class="w-24 bg-white dark:bg-darkCard hover:bg-gray-50 dark:hover:bg-[#2c2c2e] border border-gray-100 dark:border-gray-800 rounded-3xl shadow-sm transition flex flex-col items-center justify-center gap-3 active:scale-95 group">
-                    <div
-                        class="w-12 h-12 rounded-2xl bg-gray-50 dark:bg-gray-800 flex items-center justify-center text-gray-400 group-hover:text-[#ff5500] transition-colors">
-                        <i class="fa-solid fa-clock-rotate-left text-xl"></i>
-                    </div>
-                    <span class="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest">Lịch
-                        sử</span>
-                </button>
             </div>
         </section>
 
@@ -588,8 +559,8 @@
                     <div
                         class="bg-white dark:bg-darkCard rounded-3xl p-5 shadow-lg flex justify-around border border-gray-50 dark:border-[#2c2c2e]">
                         <div class="flex-1 text-center">
-                            <p class="text-[#ff5500] text-xl font-black" id="profileSavedCount">0</p>
-                            <p class="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Đã lưu</p>
+                            <p class="text-[#ff5500] text-xl font-black" id="profilePlaceCount">0</p>
+                            <p class="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Đóng góp</p>
                         </div>
                         <div class="w-px h-10 bg-gray-100 dark:bg-[#3a3a3c] mx-2"></div>
                         <div class="flex-1 text-center">
@@ -612,6 +583,17 @@
                             Tài khoản của tôi</h4>
                         <div
                             class="bg-white dark:bg-darkCard rounded-3xl overflow-hidden shadow-sm border border-gray-50 dark:border-[#2c2c2e]">
+                            <button id="btnOpenRewards"
+                                class="w-full flex items-center gap-4 p-5 hover:bg-gray-50 dark:hover:bg-[#2c2c2e] transition text-left group">
+                                <div
+                                    class="w-10 h-10 rounded-2xl bg-orange-50 dark:bg-[#1f1612] flex items-center justify-center text-[#ff5500]">
+                                    <i class="fa-solid fa-gift"></i>
+                                </div>
+                                <span class="flex-1 font-bold text-[15px]">Quà tặng & Đổi thưởng</span>
+                                <i
+                                    class="fa-solid fa-chevron-right text-gray-300 group-hover:text-[#ff5500] transition"></i>
+                            </button>
+                            <div class="h-px bg-gray-50 dark:bg-[#2c2c2e] mx-5"></div>
                             <button id="btnOpenSavedPlaces"
                                 class="w-full flex items-center gap-4 p-5 hover:bg-gray-50 dark:hover:bg-[#2c2c2e] transition text-left group">
                                 <div
@@ -876,9 +858,13 @@
             <div class="flex w-2/5 justify-around">
                 <button
                     class="nav-btn flex flex-col items-center justify-center text-gray-400 transition-all duration-300 relative group"
-                    data-target="rewards">
-                    <i class="fa-solid fa-gift text-xl mb-1.5 transition-transform group-active:scale-90"></i>
-                    <span class="text-[9px] font-bold uppercase tracking-tight">Đổi thưởng</span>
+                    data-target="notifications">
+                    <i class="fa-solid fa-bell text-xl mb-1.5 transition-transform group-active:scale-90"></i>
+                    <span class="text-[9px] font-bold uppercase tracking-tight">Thông báo</span>
+                    <span id="navNotifBadge" class="absolute top-1 right-2 flex h-2.5 w-2.5 hidden">
+                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                        <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500"></span>
+                    </span>
                 </button>
                 <button
                     class="nav-btn flex flex-col items-center justify-center text-gray-400 transition-all duration-300"
@@ -1389,21 +1375,25 @@
         </div>
     </div>
 
-    <!-- Modal Thông Báo -->
-    <div id="notificationsModal" class="fixed inset-0 z-[9999] hidden bg-black/60 backdrop-blur-sm transition-opacity">
+    <!-- Modal Đổi Thưởng -->
+    <div id="rewardsModal" class="fixed inset-0 z-[9999] hidden bg-black/60 backdrop-blur-sm transition-opacity">
         <div
             class="fixed inset-x-0 bottom-0 z-[101] bg-white dark:bg-darkBg rounded-t-3xl shadow-2xl translate-y-full transition-transform duration-300 ease-out max-h-[90vh] flex flex-col">
             <div class="p-5 flex justify-between items-center border-b border-gray-100 dark:border-gray-800">
-                <h3 class="text-xl font-bold dark:text-white">Thông báo</h3>
-                <button id="closeNotificationsModal"
+                <h3 class="text-xl font-bold dark:text-white">Đổi thưởng</h3>
+                <button id="closeRewardsModal"
                     class="w-8 h-8 flex items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-full text-gray-500">
                     <i class="fa-solid fa-xmark"></i>
                 </button>
             </div>
-            <div class="flex-1 overflow-y-auto p-4 space-y-3" id="notificationsList">
-                <div class="flex flex-col items-center justify-center h-48 text-gray-400">
-                    <i class="fa-regular fa-bell-slash text-4xl mb-3"></i>
-                    <p>Chưa có thông báo nào</p>
+            <div class="flex-1 overflow-y-auto p-4 space-y-6 text-center">
+                <div
+                    class="w-24 h-24 mx-auto rounded-full bg-gradient-to-b from-[#fff5f0] to-white dark:from-[#2c1a12] dark:to-darkCard flex items-center justify-center shadow-inner border border-[#ffe0d1] dark:border-[#4d2614]">
+                    <i class="fa-solid fa-gift text-5xl text-[#ff5500]"></i>
+                </div>
+                <div>
+                    <h2 class="text-xl font-bold mt-2">Tính năng Đổi Thưởng</h2>
+                    <p class="text-gray-500 text-sm mt-2">Chức năng tích lũy điểm đổi lấy eVoucher đang được phát triển. Bạn sẽ sớm đổi được quà từ điểm thưởng đóng góp!</p>
                 </div>
             </div>
         </div>

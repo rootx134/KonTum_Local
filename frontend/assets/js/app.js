@@ -103,30 +103,30 @@ document.addEventListener('DOMContentLoaded', () => {
             // Parallel fetch to optimize load time
             const [
                 { data: profileData },
-                { count: savedCount },
+                { count: placesCount },
                 { count: reviewsCount },
                 { count: followersCount }
             ] = await Promise.all([
                 window.supabaseClient.from('profile').select('points').eq('id', user.id).single(),
-                window.supabaseClient.from('likes').select('*', { count: 'exact', head: true }).eq('user_id', user.id).eq('entity_type', 'place'),
+                window.supabaseClient.from('places').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
                 window.supabaseClient.from('reviews').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
                 window.supabaseClient.from('follows').select('*', { count: 'exact', head: true }).eq('followed_id', user.id)
             ]);
 
             const stats = {
                 points: profileData?.points || 0,
-                saved: savedCount || 0,
+                places: placesCount || 0,
                 reviews: reviewsCount || 0,
                 followers: followersCount || 0
             };
 
-            const saveNode = document.getElementById('profileSavedCount');
+            const placeNode = document.getElementById('profilePlaceCount');
             const revNode = document.getElementById('profileReviewCount');
             const folNode = document.getElementById('profileFollowerCount');
             const profilePoints = document.getElementById('profilePoints');
             const rewardsTabPoints = document.getElementById('rewardsTabPoints');
             
-            if (saveNode) saveNode.textContent = stats.saved;
+            if (placeNode) placeNode.textContent = stats.places;
             if (revNode) revNode.textContent = stats.reviews;
             if (folNode) folNode.textContent = stats.followers;
             
@@ -135,7 +135,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             // Keep local storage in sync
             user.points = stats.points;
-            user.saved_places = stats.saved;
+            user.places_count = stats.places;
             user.review_count = stats.reviews;
             user.follower_count = stats.followers;
             
@@ -191,9 +191,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (tab.id === `tab-${targetId}`) {
                     tab.classList.add('active');
 
-                    // If tab is profile or rewards, refresh user stats
-                    if ((targetId === 'profile' || targetId === 'rewards') && window.updateProfileView) {
+                    // If tab is profile or notifications, refresh user stats / notifications
+                    if (targetId === 'profile' && window.updateProfileView) {
                         window.updateProfileView();
+                    }
+                    if (targetId === 'notifications' && window.loadNotifications) {
+                        window.loadNotifications();
                     }
                 }
             });
