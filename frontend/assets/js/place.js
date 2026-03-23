@@ -118,14 +118,14 @@ document.addEventListener('DOMContentLoaded', () => {
                         const path = `places/${user.id}_${Date.now()}_${Math.random().toString(36).substring(7)}.${ext}`;
                         
                         const { data: uploadData, error: uploadError } = await window.supabaseClient.storage
-                            .from('uploads')
+                            .from('places')
                             .upload(path, file);
 
                         if (uploadError) {
                             throw new Error("Lỗi tải ảnh: " + uploadError.message);
                         }
 
-                        const { data: { publicUrl } } = window.supabaseClient.storage.from('uploads').getPublicUrl(path);
+                        const { data: { publicUrl } } = window.supabaseClient.storage.from('places').getPublicUrl(path);
                         uploadedImageUrls.push(publicUrl);
                     }
                 }
@@ -144,11 +144,11 @@ document.addEventListener('DOMContentLoaded', () => {
                         category_id: parseInt(category_id),
                         address: address,
                         description: description,
-                        lat: parseFloat(latVal) || lat,
-                        lng: parseFloat(lngVal) || lng,
+                        latitude: parseFloat(latVal) || lat,
+                        longitude: parseFloat(lngVal) || lng,
+                        thumbnail: coverImage,
                         user_id: user.id,
-                        status: 'pending',
-                        cover_image: uploadedImageUrls.length > 0 ? uploadedImageUrls[0] : null
+                        status: 'pending'
                     }])
                     .select();
 
@@ -209,7 +209,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             } catch (err) {
                 console.error(err);
-                showToast("Lỗi kết nối máy chủ", "error");
+                showToast("Lỗi: " + (err.message || "Không thể cập nhật"), "error");
             } finally {
                 submitPlaceBtn.disabled = false;
                 submitPlaceBtn.textContent = 'Gửi';

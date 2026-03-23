@@ -191,8 +191,7 @@ if (submitReviewBtn) {
                     user_id: currentUser.id,
                     rating: parseInt(rating),
                     content: content,
-                    images: JSON.stringify(uploadedUrls),
-                    is_approved: 1
+                    images: JSON.stringify(uploadedUrls)
                 }])
                 .select();
 
@@ -248,7 +247,7 @@ if (submitReviewBtn) {
 
         } catch (err) {
             console.error("Submit review error:", err);
-            showToast("Lỗi kết nối máy chủ", "error");
+            showToast("Lỗi: " + (err.message || "Không thể đăng đánh giá"), "error");
         } finally {
             submitReviewBtn.disabled = false;
             submitReviewBtn.textContent = 'Đăng';
