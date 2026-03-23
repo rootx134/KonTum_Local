@@ -533,10 +533,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 const el = document.createElement('div');
                 el.className = 'bg-white dark:bg-darkCard rounded-2xl p-4 shadow-sm border border-gray-50 dark:border-[#2c2c2e]';
 
+                let revImages = [];
+                try { revImages = typeof review.images === 'string' ? JSON.parse(review.images) : (review.images || []); } catch (e) { revImages = []; }
+
                 let imageHtml = '';
-                if (review.images && review.images.length > 0) {
+                if (revImages.length > 0) {
                     imageHtml += '<div class="flex gap-2 mt-3 overflow-x-auto pb-2 snap-x snap-mandatory scrollbar-hide select-none">';
-                    const imgUrls = review.images.map(img => img.startsWith('http') ? img : `${window.API_URL}/../${img}`);
+                    const imgUrls = revImages.map(img => img.startsWith('http') ? img : `${window.API_URL}/../${img}`);
                     const imgUrlsJson = JSON.stringify(imgUrls).replace(/"/g, '&quot;');
 
                     imgUrls.forEach((imgUrl, idx) => {
@@ -864,7 +867,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const unreadIds = notifs.filter(n => (n.is_read == 0 || n.is_read === false)).map(n => n.id);
             if (unreadIds.length > 0) {
                 window.supabaseClient.from('notifications')
-                    .update({ is_read: true })
+                    .update({ is_read: 1 })
                     .in('id', unreadIds)
                     .then(() => {
                         if (notifBadge) notifBadge.classList.add('hidden');
@@ -890,7 +893,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 .from('notifications')
                 .select('*', { count: 'exact', head: true })
                 .eq('user_id', user.id)
-                .in('is_read', [false, 0]);
+                .in('is_read', [0]);
 
             if (error) throw error;
             const unread = count || 0;

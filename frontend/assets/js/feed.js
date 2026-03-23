@@ -94,10 +94,13 @@ document.addEventListener('DOMContentLoaded', () => {
             card.dataset.id = review.id;
 
             // Thumbnail xử lý (nếu có nhiều ảnh)
+            let revImages = [];
+            try { revImages = typeof review.images === 'string' ? JSON.parse(review.images) : (review.images || []); } catch (e) { revImages = []; }
+
             let imageHtml = '';
-            if (review.images && review.images.length > 0) {
+            if (revImages.length > 0) {
                 imageHtml += '<div class="flex gap-2 overflow-x-auto snap-x snap-mandatory scrollbar-hide pb-2 mt-4 select-none">';
-                const imgUrls = review.images.map(img => img.startsWith('http') ? img : `${API_URL}/../${img}`);
+                const imgUrls = revImages.map(img => img.startsWith('http') ? img : `${API_URL}/../${img}`);
                 const imgUrlsJson = JSON.stringify(imgUrls).replace(/"/g, '&quot;');
 
                 imgUrls.forEach((imgUrl, idx) => {
@@ -155,7 +158,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Add click listener cho Image và Text để mở Place Detail
             const clickAreas = card.querySelectorAll('.place-card-click');
             clickAreas.forEach(area => {
-                const imgArg = review.images && review.images.length > 0 ? `${API_URL}/../${review.images[0]}` : '';
+                const imgArg = revImages.length > 0 ? `${API_URL}/../${revImages[0]}` : '';
                 area.addEventListener('click', () => openPlaceDetail({
                     id: review.place_id,
                     name: review.place_name,
@@ -195,8 +198,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const imageContainer = document.getElementById('detailPlaceImageContainer');
         if (imageContainer) {
             let imagesHtml = '';
-            if (place.images && place.images.length > 0) {
-                place.images.forEach(img => {
+            let plcImages = [];
+            try { plcImages = typeof place.images === 'string' ? JSON.parse(place.images) : (place.images || []); } catch (e) { plcImages = []; }
+
+            if (plcImages.length > 0) {
+                plcImages.forEach(img => {
                     const fullUrl = img.startsWith('http') ? img : `${API_URL}/../${img}`;
                     imagesHtml += `<img src="${fullUrl}" class="w-full h-full object-cover flex-shrink-0 snap-center">`;
                 });
@@ -500,10 +506,13 @@ document.addEventListener('DOMContentLoaded', () => {
                             const unstarHtml = '<i class="fa-regular fa-star text-gray-300 text-[10px]"></i>'.repeat(5 - r.rating);
 
                             // Nếu có ảnh
+                            let pRevImages = [];
+                            try { pRevImages = typeof r.images === 'string' ? JSON.parse(r.images) : (r.images || []); } catch (e) { pRevImages = []; }
+
                             let imgHtml = '';
-                            if (r.images && r.images.length > 0) {
+                            if (pRevImages.length > 0) {
                                 imgHtml += '<div class="flex gap-2 overflow-x-auto snap-x snap-mandatory scrollbar-hide pb-2 mt-4 select-none">';
-                                const imgUrls = r.images.map(img => img.startsWith('http') ? img : `${window.API_URL}/../${img}`);
+                                const imgUrls = pRevImages.map(img => img.startsWith('http') ? img : `${window.API_URL}/../${img}`);
                                 const imgUrlsJson = JSON.stringify(imgUrls).replace(/"/g, '&quot;');
 
                                 imgUrls.forEach((imgUrl, idx) => {
