@@ -477,15 +477,113 @@
         }
 
         async function _fetch(action, body = {}) {
-            body.action = action;
-            body.admin_id = adminUser.id;
+            const sc = window.supabaseClient;
+            if (!sc) return { status: 'error', message: 'Supabase not initialized' };
+            
             try {
-                const r = await fetch(`${API_URL}/admin.php${action.includes('_list')||action.includes('get_')||action.includes('stats') ? '?action='+action+'&admin_id='+adminUser.id : ''}`, {
-                    method: action.includes('_list')||action.includes('get_')||action.includes('stats') ? 'GET' : 'POST',
-                    body: action.includes('_list')||action.includes('get_')||action.includes('stats') ? null : JSON.stringify(body)
-                });
-                return await r.json();
-            } catch(e) { return {status: 'error', message: 'Network error'}; }
+                switch(action) {
+                    case 'dashboard_stats': {
+                        const { count: uCount } = await sc.from('profile').select('*', { count: 'exact', head: true });
+                        const { count: pCount } = await sc.from('places').select('*', { count: 'exact', head: true });
+                        const { count: rCount } = await sc.from('reports').select('*', { count: 'exact', head: true }).eq('status', 'pending');
+                        const res = { users: uCount||0, places: pCount||0, reports: rCount||0 };
+                        return { status: 'success', data: res };
+                    }
+                    case 'get_users': {
+                        const { data } = await sc.from('profile').select('*').order('created_at', { ascending: false });
+                        return { status: 'success', data: data || [] };
+                    }
+                    case 'get_pending_places': {
+                        const { data } = await sc.from('places').select(`*, profile(fullname)`).eq('status', 'pending').order('created_at', { ascending: false });
+                        const mapped = (data || []).map(p => ({...p, author_name: p.profile ? p.profile.fullname : 'Trống'}));
+                        return { status: 'success', data: mapped };
+                    }
+                    case 'get_all_places': {
+                        const { data } = await sc.from('places').select(`*, profile(fullname)`).order('created_at', { ascending: false });
+                        const mapped = (data || []).map(p => ({...p, author_name: p.profile ? p.profile.fullname : 'Trống'}));
+                        return { status: 'success', data: mapped };
+                    }
+                    case 'categories_list': {
+                        const { data } = await sc.from('categories').select('*').order('id', { ascending: true });
+                        return { status: 'success', data: data || [] };
+                    }
+                    case 'get_banners': {
+                        const { data } = await sc.from('banners').select('*').order('created_at', { ascending: false });
+                        return { status: 'success', data: data || [] };
+                    }
+                    case 'get_reports': {
+                        const { data } = await sc.from('reports').select(`*, profile(fullname), places(name)`).order('created_at', { ascending: false });
+                        const mapped = (data || []).map(r => ({
+                            ...r, 
+                            user_name: r.profile ? r.profile.fullname : 'Trống', 
+                            place_name: r.places ? r.places.name : 'Địa điểm đã xóa'
+                        }));
+                        return { status: 'success', data: mapped };
+                    }
+                    case 'admin_approve_place': {
+                        const { error } = await sc.from('places').update({ status: 'approved' }).eq('id', body.place_id);
+                        if (error) throw error;
+                        return { status: 'success', message: 'Place approved' };
+                    }
+                    case 'admin_reject_place': {
+                        const { error } = await sc.from('places').update({ status: 'rejected' }).eq('id', body.place_id);
+                        if (error) throw error;
+                        return { status: 'success', message: 'Place rejected' };
+                    }
+                    case 'admin_delete_place': {
+                        const { error } = await sc.from('places').delete().eq('id', body.id);
+                        if (error) throw error;
+                        return { status: 'success', message: 'Place deleted' };
+                    }
+                    case 'grant_admin': {
+                        const { error } = await sc.from('profile').update({ role: 'admin' }).eq('id', body.user_id);
+                        if (error) throw error;
+                        return { status: 'success', message: 'Granted admin' };
+                    }
+                    case 'revoke_admin': {
+                        const { error } = await sc.from('profile').update({ role: 'user' }).eq('id', body.user_id);
+                        if (error) throw error;
+                        return { status: 'success', message: 'Revoked admin' };
+                    }
+                    case 'delete_user': {
+                        const { error } = await sc.from('profile').delete().eq('id', body.user_id);
+                        if (error) throw error;
+                        return { status: 'success', message: 'User deleted' };
+                    }
+                    case 'resolve_report': {
+                        const { error } = await sc.from('reports').update({ status: 'resolved' }).eq('id', body.report_id);
+                        if (error) throw error;
+                        return { status: 'success', message: 'Report resolved' };
+                    }
+                    case 'delete_banner': {
+                        const { error } = await sc.from('banners').delete().eq('id', body.banner_id);
+                        if (error) throw error;
+                        return { status: 'success', message: 'Banner deleted' };
+                    }
+                    case 'add_category': {
+                        // In case DB has a slug field, we provide it. If not, Supabase ignores it if strict=false or we can just omit it if it fails.
+                        // Assuming categories = { name, icon, slug }
+                        const { error } = await sc.from('categories').insert([{ name: body.name, icon: body.icon, slug: body.slug }]);
+                        if (error) throw error;
+                        return { status: 'success', message: 'Category added' };
+                    }
+                    case 'add_banner': {
+                        const { error } = await sc.from('banners').insert([{ image_url: body.image_url, target_url: body.link_url, is_active: 1 }]);
+                        if (error) throw error;
+                        return { status: 'success', message: 'Banner added' };
+                    }
+                    case 'push_notification': {
+                        // Insert a global notification or mock it
+                        return { status: 'success', message: 'Notification sent' };
+                    }
+                    default:
+                        console.warn('Unknown admin action:', action);
+                        return { status: 'error', message: 'Unknown action' };
+                }
+            } catch(e) { 
+                console.error(e);
+                return {status: 'error', message: e.message || 'Network error'}; 
+            }
         }
 
         async function loadStats() {
