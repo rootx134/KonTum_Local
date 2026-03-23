@@ -125,24 +125,23 @@ window.apiService = {
     },
 
     toggleSave: async function(userId, entityType, entityId) {
-        const table = entityType === 'place' ? 'favorite_places' : 'favorite_reviews';
-        const col = entityType === 'place' ? 'place_id' : 'review_id';
         const { data: existing, error: errCheck } = await window.supabaseClient
-            .from(table)
+            .from('saved')
             .select('id')
             .eq('user_id', userId)
-            .eq(col, entityId);
+            .eq('entity_type', entityType)
+            .eq('entity_id', entityId);
 
         if (errCheck) return { status: 'error' };
 
         if (existing.length > 0) {
-            const { error: errDel } = await window.supabaseClient.from(table).delete().eq('id', existing[0].id);
+            const { error: errDel } = await window.supabaseClient.from('saved').delete().eq('id', existing[0].id);
             if (errDel) return { status: 'error' };
             return { status: 'success', saved: false, message: 'Đã bỏ lưu' };
         } else {
             const { error: errAdd } = await window.supabaseClient
-                .from(table)
-                .insert([{ user_id: userId, [col]: entityId }]);
+                .from('saved')
+                .insert([{ user_id: userId, entity_type: entityType, entity_id: entityId }]);
             if (errAdd) return { status: 'error' };
             return { status: 'success', saved: true, message: 'Đã lưu thành công' };
         }
@@ -164,14 +163,14 @@ window.apiService = {
     toggleFollow: async function(followerId, followedId) {
         const { data: existing, error: errCheck } = await window.supabaseClient
             .from('followers')
-            .select('follower_id')
+            .select('id')
             .eq('follower_id', followerId)
             .eq('following_id', followedId);
 
         if (errCheck) return { status: 'error' };
 
         if (existing.length > 0) {
-            const { error: errDel } = await window.supabaseClient.from('followers').delete().eq('follower_id', followerId).eq('following_id', followedId);
+            const { error: errDel } = await window.supabaseClient.from('followers').delete().eq('id', existing[0].id);
             if (errDel) return { status: 'error' };
             return { status: 'success', following: false, message: 'Đã bỏ theo dõi' };
         } else {
@@ -185,7 +184,7 @@ window.apiService = {
     },
 
     addPoints: async function(userId, points, description) {
-        await window.supabaseClient.from('points_history').insert([{ user_id: userId, points, description }]);
+        await window.supabaseClient.from('points_history').insert([{ user_id: userId, points, reason: description }]);
         const { data: user } = await window.supabaseClient.from('profile').select('points').eq('id', userId).single();
         if (user) {
             await window.supabaseClient.from('profile').update({ points: user.points + points }).eq('id', userId);
@@ -193,11 +192,14 @@ window.apiService = {
     },
 
     addNotification: async function(userId, type, referenceId, msg) {
+        let title = 'Thông báo mới';
+        if (type === 'follow') title = 'Người theo dõi mới';
+        if (type === 'like') title = 'Lượt thích mới';
+
         await window.supabaseClient.from('notifications').insert([{
             user_id: userId,
-            type: type,
-            reference_id: referenceId,
-            message: msg,
+            title: title,
+            content: msg,
             is_read: 0
         }]);
     },
@@ -217,25 +219,38 @@ window.apiService = {
     getPlaces: async function(params = {}) {
         let query = window.supabaseClient
             .from('places')
-            .select('*');
+            .select('*, reviews(rating)');
             
         if (params.category_id) query = query.eq('category_id', params.category_id);
-        
-        if (params.sort === 'new') query = query.order('created_at', { ascending: false });
-        else if (params.sort === 'top_rated') query = query.order('id', { ascending: false });
-        else query = query.order('created_at', { ascending: false }); // default
         
         if (params.limit) query = query.limit(params.limit);
         
         const { data, error } = await query;
         if (error) { console.error('Error fetching places:', error); return []; }
-        return data;
+        
+        let enriched = (data || []).map(p => {
+            const revs = p.reviews || [];
+            const avg = revs.length > 0 ? revs.reduce((sum, r) => sum + r.rating, 0) / revs.length : 0;
+            return {
+                ...p,
+                review_count: revs.length,
+                average_rating: avg
+            };
+        });
+
+        if (params.sort === 'top_rated') {
+            enriched.sort((a,b) => b.average_rating - a.average_rating || new Date(b.created_at) - new Date(a.created_at));
+        } else {
+            enriched.sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
+        }
+
+        return enriched;
     },
 
     getPlaceDetail: async function(placeId) {
         const { data: place, error } = await window.supabaseClient
             .from('places')
-            .select('*, categories (name), place_images (image_url)')
+            .select('*, categories (name), place_images (image_url), reviews(rating)')
             .eq('id', placeId)
             .single();
 
@@ -246,13 +261,18 @@ window.apiService = {
         if (place.place_images && place.place_images.length > 0) {
             images = images.concat(place.place_images.map(img => img.image_url));
         }
+        
+        const revs = place.reviews || [];
+        const avg = revs.length > 0 ? revs.reduce((sum, r) => sum + r.rating, 0) / revs.length : 0;
 
         return {
             status: 'success',
             place: {
                 ...place,
                 category_name: place.categories?.name,
-                images: images
+                images: images,
+                review_count: revs.length,
+                average_rating: avg
             }
         };
     },
@@ -306,8 +326,7 @@ window.apiService = {
         const { error } = await window.supabaseClient.from('places').update({
             name: updateData.name,
             address: updateData.address,
-            category_id: updateData.category_id,
-            description: updateData.description
+            category_id: updateData.category_id
         }).eq('id', placeId);
 
         if (error) return { status: 'error', message: 'Lỗi lưu thông tin' };
@@ -425,9 +444,8 @@ window.fetch = async function(resource, config) {
                             name: bodyObj.name,
                             category_id: bodyObj.category_id,
                             address: bodyObj.address,
-                            description: bodyObj.description,
                             thumbnail: (imgs && imgs.length > 0) ? imgs[0] : null,
-                            user_id: bodyObj.user_id,
+                            owner_id: bodyObj.user_id,
                             latitude: bodyObj.latitude,
                             longitude: bodyObj.longitude,
                             status: 'pending'
@@ -445,13 +463,31 @@ window.fetch = async function(resource, config) {
                 }
             case 'get_saved_places':
                 {
-                    const { data } = await window.supabaseClient.from('favorite_places').select('id, place_id, user_id, places(*)').eq('user_id', urlObj.searchParams.get('user_id'));
-                    return new Response(JSON.stringify((data || []).map(d => d.places).filter(Boolean)));
+                    const { data: savedIds } = await window.supabaseClient.from('saved').select('entity_id').eq('user_id', urlObj.searchParams.get('user_id')).eq('entity_type', 'place');
+                    if (!savedIds || savedIds.length === 0) return new Response(JSON.stringify([]));
+                    const ids = savedIds.map(d => d.entity_id);
+                    const { data: places } = await window.supabaseClient.from('places').select('*, reviews(rating)').in('id', ids);
+                    let enriched = (places||[]).map(p => {
+                        const revs = p.reviews || [];
+                        const avg = revs.length > 0 ? revs.reduce((sum, r) => sum + r.rating, 0) / revs.length : 0;
+                        return { ...p, review_count: revs.length, average_rating: avg };
+                    });
+                    return new Response(JSON.stringify(enriched));
                 }
             case 'get_saved_reviews':
                 {
-                    const { data } = await window.supabaseClient.from('favorite_reviews').select('id, review_id, user_id, reviews(*, profile(fullname, avatar))').eq('user_id', urlObj.searchParams.get('user_id'));
-                    return new Response(JSON.stringify((data || []).map(d => ({ ...d.reviews, fullname: d.reviews?.profile?.fullname, avatar: d.reviews?.profile?.avatar })).filter(Boolean)));
+                    const { data: savedIds } = await window.supabaseClient.from('saved').select('entity_id').eq('user_id', urlObj.searchParams.get('user_id')).eq('entity_type', 'review');
+                    if (!savedIds || savedIds.length === 0) return new Response(JSON.stringify([]));
+                    const ids = savedIds.map(d => d.entity_id);
+                    const { data: reviews } = await window.supabaseClient.from('reviews').select('*, profile(fullname, avatar), likes(user_id), comments(id)').in('id', ids);
+                    let enriched = (reviews||[]).map(r => ({
+                        ...r,
+                        fullname: r.profile?.fullname || 'Ẩn danh',
+                        avatar: r.profile?.avatar || 'default_avatar.png',
+                        like_count: r.likes?.length || 0,
+                        comment_count: r.comments?.length || 0
+                    }));
+                    return new Response(JSON.stringify(enriched));
                 }
             case 'get_my_reviews':
                 {
@@ -565,9 +601,9 @@ window.fetch = async function(resource, config) {
             case 'get_stats':
                 {
                     const profileData = await window.supabaseClient.from('profile').select('points').eq('id', bodyObj.user_id).single();
-                    const { count: savedCount } = await window.supabaseClient.from('favorite_places').select('*', { count: 'exact', head: true }).eq('user_id', bodyObj.user_id);
+                    const { count: savedCount } = await window.supabaseClient.from('saved').select('*', { count: 'exact', head: true }).eq('user_id', bodyObj.user_id).eq('entity_type', 'place');
                     const { count: reviewCount } = await window.supabaseClient.from('reviews').select('*', { count: 'exact', head: true }).eq('user_id', bodyObj.user_id);
-                    const { count: followerCount } = await window.supabaseClient.from('followers').select('*', { count: 'exact', head: true }).eq('following_id', bodyObj.user_id);
+                    const { count: followerCount } = await window.supabaseClient.from('follows').select('*', { count: 'exact', head: true }).eq('followed_id', bodyObj.user_id);
                     
                     return new Response(JSON.stringify({ 
                         status: 'success', 

@@ -104,11 +104,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="flex items-center gap-6 mt-4 pt-3 border-t border-gray-50 dark:border-white/5">
                     <button class="flex items-center gap-2 ${likeColor} text-sm font-bold group" onclick="window.toggleLikeReview(this, ${review.id})">
                         <i class="${(review.liked_by_me == 1) ? 'fa-solid' : 'fa-regular'} fa-heart group-hover:scale-110 transition-transform"></i>
-                        <span class="likes-count">${parseInt(review.likes_count) || 0}</span>
+                        <span>${review.total_likes}</span>
                     </button>
                     <button class="flex items-center gap-2 text-gray-400 text-sm font-bold group" onclick="window.openComments(${review.id})">
                         <i class="fa-regular fa-comment-dots group-hover:scale-110 transition-transform"></i>
-                        <span>${parseInt(review.comments_count) || 0}</span>
+                        <span>${review.total_comments}</span>
                     </button>
                     <div class="flex gap-4 ml-auto">
                         <button class="flex items-center gap-2 ${review.saved_by_me ? 'text-red-500' : 'text-gray-400'} text-sm font-bold active:text-red-500 group" onclick="window.toggleSaveReview(this, ${review.id})">
