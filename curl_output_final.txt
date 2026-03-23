@@ -1,0 +1,28 @@
+Note: Unnecessary use of -X or --request, POST is already inferred.
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0*   Trying 127.0.0.1:8999...
+* Connected to 127.0.0.1 (127.0.0.1) port 8999
+> POST /api/ai.php HTTP/1.1
+> Host: 127.0.0.1:8999
+> User-Agent: curl/8.7.1
+> Accept: */*
+> Content-Type: application/json
+> Content-Length: 49
+> 
+} [49 bytes data]
+* upload completely sent off: 49 bytes
+100    49    0     0  100    49      0     48  0:00:01  0:00:01 --:--:--    48< HTTP/1.1 200 OK
+< Host: 127.0.0.1:8999
+< Date: Thu, 05 Mar 2026 22:09:54 GMT
+< Connection: close
+< X-Powered-By: PHP/8.5.3
+< Access-Control-Allow-Origin: *
+< Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS
+< Access-Control-Allow-Headers: Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With
+< Content-Type: application/json; charset=UTF-8
+< 
+{ [197 bytes data]
+100   246    0   197  100    49    195     48  0:00:01  0:00:01 --:--:--   244
+* Closing connection
+{"status":"success","reply":"Hello! B\u1ea1n c\u00f3 c\u00e2u h\u1ecfi n\u00e0o v\u1ec1 Kon Tum kh\u00f4ng? M\u00ecnh r\u1ea5t vui \u0111\u01b0\u1ee3c gi\u00fap b\u1ea1n! \ud83d\ude0a\ud83c\udf3f"}
