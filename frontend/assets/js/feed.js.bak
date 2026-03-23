@@ -1,0 +1,695 @@
+document.addEventListener('DOMContentLoaded', () => {
+    const API_URL = '/api';
+    const feedContainer = document.getElementById('feedContainer');
+
+    // --- Render Explore Feed (Reviews/Posts) ---
+    async function loadFeed() {
+        if (!feedContainer) return;
+        try {
+            const user = JSON.parse(localStorage.getItem('user_vtkt'));
+            const uid = user ? user.id : 0;
+            const res = await fetch(`${API_URL}/places.php?action=get_feed&user_id=${uid}`);
+            const data = await res.json();
+
+            if (Array.isArray(data)) {
+                renderFeed(data);
+            }
+        } catch (err) {
+            console.error("Gặp lỗi tải feed:", err);
+        }
+    }
+
+    function renderFeed(reviews) {
+        feedContainer.innerHTML = '';
+
+        reviews.forEach(review => {
+            const card = document.createElement('div');
+            card.className = 'bg-white dark:bg-darkCard rounded-3xl p-5 mb-4 shadow-sm border border-gray-50 dark:border-[#2c2c2e]';
+            card.dataset.id = review.id;
+
+            // Thumbnail xử lý (nếu có nhiều ảnh, ở đây lấy ảnh đầu tiên làm thumb)
+            let imageHtml = '';
+            if (review.images && review.images.length > 0) {
+                const imgUrl = `${API_URL}/../${review.images[0]}`;
+                imageHtml = `
+                    <div class="mt-4 mb-2 rounded-2xl overflow-hidden aspect-video relative place-card-click cursor-pointer shadow-sm">
+                        <img src="${imgUrl}" class="w-full h-full object-cover">
+                    </div>
+                `;
+            }
+            const avatarUrl = (review.avatar && review.avatar !== 'default_avatar.png') ? review.avatar : `https://ui-avatars.com/api/?name=${encodeURIComponent(review.fullname)}&background=ff5500&color=fff&rounded=true&bold=true`;
+            const likeColor = review.currentUser_liked == 1 ? 'text-[#ff5500]' : 'text-gray-400';
+
+            card.innerHTML = `
+                <div class="flex items-center gap-3">
+                    <img src="${avatarUrl}" class="w-10 h-10 rounded-full object-cover shadow-sm border border-gray-100">
+                    <div class="flex-1">
+                        <h4 class="font-extrabold text-sm flex items-center gap-2">${review.fullname} <button class="text-[#ff5500] text-[10px] uppercase tracking-wider bg-[#fff5f0] px-2 py-0.5 rounded-full" onclick="window.toggleFollowUser(this, ${review.user_id})"><i class="fa-solid fa-plus mr-1"></i>Follow</button></h4>
+                        <p class="text-[11px] text-gray-400 font-medium flex items-center gap-1">
+                            <i class="fa-solid fa-location-dot"></i> <span>Đã đánh giá tại <b class="text-[#ff5500]">${review.place_name}</b></span>
+                        </p>
+                    </div>
+                    <div class="bg-yellow-50 text-yellow-600 dark:bg-yellow-900/30 px-2 py-1 rounded-lg text-xs font-bold flex items-center gap-1">
+                        <i class="fa-solid fa-star"></i> ${review.rating}
+                    </div>
+                </div>
+                
+                ${imageHtml}
+                
+                <p class="text-gray-600 dark:text-gray-300 text-sm mt-3 leading-relaxed place-card-click cursor-pointer">${review.content}</p>
+                
+                <div class="flex items-center gap-6 mt-4 pt-3 border-t border-gray-50 dark:border-white/5">
+                    <button class="flex items-center gap-2 ${likeColor} text-sm font-bold group" onclick="window.toggleLikeReview(this, ${review.id})">
+                        <i class="${(review.liked_by_me == 1) ? 'fa-solid' : 'fa-regular'} fa-heart group-hover:scale-110 transition-transform"></i>
+                        <span>${review.total_likes}</span>
+                    </button>
+                    <button class="flex items-center gap-2 text-gray-400 text-sm font-bold group" onclick="window.openComments(${review.id})">
+                        <i class="fa-regular fa-comment-dots group-hover:scale-110 transition-transform"></i>
+                        <span>${review.total_comments}</span>
+                    </button>
+                    <div class="flex gap-4 ml-auto">
+                        <button class="flex items-center gap-2 ${review.saved_by_me ? 'text-red-500' : 'text-gray-400'} text-sm font-bold active:text-red-500 group" onclick="window.toggleSaveReview(this, ${review.id})">
+                            <i class="${review.saved_by_me ? 'fa-solid' : 'fa-regular'} fa-bookmark group-hover:scale-110 transition-transform"></i>
+                        </button>
+                        <button class="flex items-center gap-2 text-gray-400 text-sm font-bold active:text-[#ff5500] group" onclick="window.shareReview('${review.place_name.replace(/'/g, "\\'")}', '${review.content.replace(/'/g, "\\'")}', ${review.id})">
+                            <i class="fa-solid fa-share-nodes group-hover:scale-110 transition-transform"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            // Add click listener cho Image và Text để mở Place Detail
+            const clickAreas = card.querySelectorAll('.place-card-click');
+            clickAreas.forEach(area => {
+                const imgArg = review.images && review.images.length > 0 ? `${API_URL}/../${review.images[0]}` : '';
+                area.addEventListener('click', () => openPlaceDetail({
+                    id: review.place_id,
+                    name: review.place_name,
+                    address: "Đang cập nhật...", // Mock
+                    category_id: 1
+                }, imgArg, review.rating, review.total_comments));
+            });
+
+            feedContainer.appendChild(card);
+        });
+    }
+
+    // --- Detail Modal ---
+    const placeDetailModal = document.getElementById('placeDetailModal');
+    const closePlaceDetail = document.getElementById('closePlaceDetail');
+
+    async function openPlaceDetail(placeInput, imgUrl, rating, reviewCount) {
+        if (!placeDetailModal) return;
+
+        let place = placeInput;
+
+        try {
+            // Fetch real details including coords
+            const res = await fetch(`${API_URL}/places.php?action=get_place_detail&id=${placeInput.id}`);
+            const data = await res.json();
+            if (data && data.id) {
+                place = data;
+                // update parameters if they were poorly mocked
+                rating = data.average_rating || rating;
+                reviewCount = data.review_count || reviewCount;
+            }
+        } catch (e) {
+            console.error("Error fetching place detail", e);
+        }
+
+        // Hiển thị thông tin cơ bản
+        const imageContainer = document.getElementById('detailPlaceImageContainer');
+        if (imageContainer) {
+            let imagesHtml = '';
+            if (place.images && place.images.length > 0) {
+                place.images.forEach(img => {
+                    const fullUrl = img.startsWith('http') ? img : `${API_URL}/../${img}`;
+                    imagesHtml += `<img src="${fullUrl}" class="w-full h-full object-cover flex-shrink-0 snap-center">`;
+                });
+            } else {
+                const imgUrl = place.thumbnail ? (place.thumbnail.startsWith('http') ? place.thumbnail : `${API_URL}/../${place.thumbnail}`) : 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&q=60&w=300';
+                imagesHtml = `<img src="${imgUrl}" class="w-full h-full object-cover flex-shrink-0 snap-center">`;
+            }
+            imageContainer.innerHTML = imagesHtml;
+        }
+        document.getElementById('detailPlaceName').textContent = place.name;
+        document.getElementById('detailPlaceAddress').querySelector('span').textContent = place.address;
+
+        // Category label
+        const categories = { 1: 'Ăn uống', 2: 'Giải trí', 3: 'Khách sạn', 4: 'Du lịch', 5: 'Khác' };
+        document.getElementById('detailPlaceCategory').textContent = place.category_name || categories[place.category_id] || 'Địa điểm';
+
+        document.getElementById('detailPlaceDesc').textContent = place.description || "Chưa có thông tin mô tả chi tiết cho địa điểm này.";
+
+        document.getElementById('detailStatRating').textContent = rating || '0.0';
+        document.getElementById('detailStatReviews').textContent = reviewCount || '0';
+
+        // Initialize Leaflet Map
+        const mapContainer = document.getElementById('detailPlaceMap');
+        if (mapContainer && place.latitude && place.longitude && typeof L !== 'undefined') {
+            // Xoá nội dung cũ để tránh việc id detailPlaceMapInner bị duplicate nếu mở nhiều lần
+            mapContainer.innerHTML = "<div id='detailPlaceMapInner' class='w-full h-full rounded-2xl'></div>";
+            mapContainer.parentElement.classList.remove('hidden'); // Show wrapper Container
+            const position = [parseFloat(place.latitude), parseFloat(place.longitude)];
+
+            // Allow container to layout properly
+            setTimeout(() => {
+                const detailMap = L.map('detailPlaceMapInner', {
+                    zoomControl: true,
+                    attributionControl: false
+                }).setView(position, 15);
+
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    maxZoom: 19
+                }).addTo(detailMap);
+
+                L.marker(position, {
+                    icon: L.divIcon({
+                        className: 'custom-leaflet-marker',
+                        html: `
+                            <div style="background-color: #ff5500; width: 32px; height: 32px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); border: 2px solid white; box-shadow: 0 4px 6px rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center;">
+                                <i class="fa-solid fa-map-pin" style="color: white; transform: rotate(45deg); font-size: 13px;"></i>
+                            </div>
+                        `,
+                        iconSize: [32, 44],
+                        iconAnchor: [16, 44]
+                    })
+                }).addTo(detailMap).bindPopup(place.name).openPopup();
+
+                // Force map check size
+                setTimeout(() => detailMap.invalidateSize(), 150);
+            }, 50);
+        } else if (mapContainer) {
+            mapContainer.parentElement.classList.add('hidden'); // Hide wrapper if no coordinates
+        }
+
+        // Gắn ID hiện tại vào nút viết review ngay từ trong chi tiết
+        const btnWriteReview = document.getElementById('btnWriteReviewFromDetail');
+        if (btnWriteReview) {
+            btnWriteReview.onclick = () => {
+                if (!localStorage.getItem('user_vtkt')) {
+                    typeof showToast === 'function' ? showToast("Vui lòng đăng nhập để đánh giá!", "error") : alert("Vui lòng đăng nhập!");
+                    return;
+                }
+                closePlaceDetail.click();
+                setTimeout(() => {
+                    const reviewModal = document.getElementById('reviewModal');
+                    if (reviewModal) {
+                        reviewModal.classList.remove('hidden');
+                        setTimeout(() => reviewModal.classList.remove('translate-y-full'), 10);
+                    }
+
+                    // Hacky cách select địa điểm
+                    setTimeout(() => {
+                        const select = document.getElementById('reviewPlace');
+                        if (select) {
+                            if (select.querySelector(`option[value="${place.id}"]`)) {
+                                select.value = place.id;
+                            } else {
+                                const opt = document.createElement('option');
+                                opt.value = place.id;
+                                opt.textContent = place.name;
+                                select.appendChild(opt);
+                                select.value = place.id;
+                            }
+                        }
+                    }, 500);
+                }, 300);
+            }
+        }
+
+        // Xử lý nút Save Place
+        const btnSavePlace = document.getElementById('btnToggleSavePlace');
+        if (btnSavePlace) {
+            btnSavePlace.onclick = async () => {
+                const user = JSON.parse(localStorage.getItem('user_vtkt'));
+                if (!user) return typeof showToast === 'function' ? showToast("Vui lòng đăng nhập!", "error") : alert("Vui lòng đăng nhập!");
+
+                try {
+                    const res = await fetch(`${API_URL}/interactions.php`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ action: 'toggle_save', user_id: user.id, place_id: place.id })
+                    });
+                    const data = await res.json();
+                    if (data.status === 'success') {
+                        if (data.saved) {
+                            btnSavePlace.querySelector('i').classList.replace('fa-regular', 'fa-solid');
+                            btnSavePlace.classList.add('text-red-500');
+                        } else {
+                            btnSavePlace.querySelector('i').classList.replace('fa-solid', 'fa-regular');
+                            btnSavePlace.classList.remove('text-red-500');
+                        }
+                        if (typeof showToast === 'function') showToast(data.message, "success");
+                    }
+                } catch (e) { }
+            };
+        }
+
+        // Xử lý nút Report Place
+        const btnReportPlace = document.getElementById('btnReportPlace');
+        if (btnReportPlace) {
+            btnReportPlace.onclick = () => {
+                if (typeof window.openReportModal === 'function') {
+                    window.openReportModal('place', place.id, place.name);
+                }
+            };
+        }
+
+        // Fetch reviews cho địa điểm này
+        const reviewsContainer = document.getElementById('detailPlaceReviewsList');
+        if (reviewsContainer) {
+            reviewsContainer.innerHTML = '<p class="text-sm text-gray-500 italic text-center py-4"><i class="fa-solid fa-spinner fa-spin mr-2"></i> Đang tải đánh giá...</p>';
+
+            const currentUserStr = localStorage.getItem('user_vtkt');
+            const currentUser = currentUserStr ? JSON.parse(currentUserStr) : null;
+            const userIdParam = currentUser ? `&user_id=${currentUser.id}` : '';
+
+            fetch(`${API_URL}/places.php?action=get_place_reviews&place_id=${place.id}${userIdParam}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (Array.isArray(data) && data.length > 0) {
+                        let html = '';
+                        data.forEach(r => {
+                            const avatarUrl = r.avatar && r.avatar !== 'default_avatar.png' ? r.avatar : `https://ui-avatars.com/api/?name=${encodeURIComponent(r.fullname)}&background=random`;
+                            const starHtml = '<i class="fa-solid fa-star text-yellow-400 text-[10px]"></i>'.repeat(r.rating);
+                            const unstarHtml = '<i class="fa-regular fa-star text-gray-300 text-[10px]"></i>'.repeat(5 - r.rating);
+
+                            // Nếu có ảnh reivew
+                            let imgHtml = '';
+                            if (r.images && r.images.length > 0) {
+                                imgHtml = `<div class="flex gap-2 mt-3 overflow-x-auto pb-2 scrollbar-hide">`;
+                                r.images.forEach(img => {
+                                    imgHtml += `<img src="${API_URL}/../${img}" class="w-20 h-20 object-cover rounded-xl shadow-sm flex-shrink-0">`;
+                                });
+                                imgHtml += `</div>`;
+                            }
+
+                            const isLiked = (r.liked_by_me == 1) ? 'fa-solid text-red-500' : 'fa-regular text-gray-500';
+                            const likesCount = parseInt(r.likes_count) || 0;
+                            const commentsCount = parseInt(r.comments_count) || 0;
+
+                            html += `
+                                <div class="bg-gray-50 dark:bg-[#2c2c2e] p-4 rounded-2xl relative group">
+                                    <button class="absolute top-4 right-4 text-gray-300 hover:text-red-500 transition-colors" onclick="if(window.openReportModal) window.openReportModal('review', ${r.id}, 'đánh giá của ${r.fullname.replace(/'/g, "\\'")}')">
+                                        <i class="fa-solid fa-flag text-xs"></i>
+                                    </button>
+                                    <div class="flex items-center gap-3 mb-2 pr-6">
+                                        <img src="${avatarUrl}" class="w-8 h-8 rounded-full object-cover">
+                                        <div>
+                                            <p class="font-bold text-sm leading-none text-gray-900 dark:text-white">${r.fullname}</p>
+                                            <div class="flex mt-1">${starHtml}${unstarHtml}</div>
+                                        </div>
+                                    </div>
+                                    <p class="text-sm text-gray-600 dark:text-gray-300">${r.content}</p>
+                                    ${imgHtml}
+                                    
+                                    <div class="flex items-center gap-4 mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+                                        <button onclick="window.toggleReviewLikeInDetail(${r.id}, this)" class="flex items-center gap-1.5 text-xs font-bold transition hover:opacity-80">
+                                            <i class="${isLiked} fa-heart text-base"></i>
+                                            <span class="${(r.liked_by_me == 1) ? 'text-red-500' : 'text-gray-500'}">${likesCount}</span>
+                                        </button>
+                                        <button onclick="window.openReviewComments(${r.id})" class="flex items-center gap-1.5 text-xs font-bold text-gray-500 transition hover:text-blue-500">
+                                            <i class="fa-regular fa-comment text-base"></i>
+                                            <span>${commentsCount}</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            `;
+                        });
+                        reviewsContainer.innerHTML = html;
+                    } else {
+                        reviewsContainer.innerHTML = '<p class="text-sm text-gray-500 italic text-center py-4">Chưa có đánh giá nào. Hãy là người đầu tiên!</p>';
+                    }
+                })
+                .catch(err => {
+                    reviewsContainer.innerHTML = '<p class="text-sm text-red-500 italic text-center py-4">Lỗi tải đánh giá.</p>';
+                });
+        }
+
+        // Hiện modal
+        placeDetailModal.classList.remove('hidden');
+        setTimeout(() => placeDetailModal.classList.remove('translate-y-full'), 10);
+    }
+
+    if (closePlaceDetail) {
+        closePlaceDetail.addEventListener('click', () => {
+            placeDetailModal.classList.add('translate-y-full');
+            setTimeout(() => placeDetailModal.classList.add('hidden'), 300);
+        });
+    }
+
+    // --- Render Home Categories ---
+    const homeCategoryGrid = document.getElementById('homeCategoryGrid');
+
+    async function loadCategories() {
+        if (!homeCategoryGrid) return;
+        try {
+            const res = await fetch(`${API_URL}/places.php?action=get_categories`);
+            const categories = await res.json();
+
+            homeCategoryGrid.innerHTML = '';
+
+            // Limit to 7 categories + 1 "More" button
+            const displayCats = categories.slice(0, 7);
+
+            displayCats.forEach(cat => {
+                const el = document.createElement('div');
+                el.className = 'flex flex-col items-center gap-2 cursor-pointer transition-transform active:scale-95';
+                el.innerHTML = `
+                    <div class="w-14 h-14 bg-[#fff5f0] dark:bg-[#2c1a12] rounded-2xl flex items-center justify-center text-[#ff5500] border border-[#ffe0d1] dark:border-[#4d2614] shadow-sm">
+                        <i class="${cat.icon || 'fa-solid fa-tag'} text-xl"></i>
+                    </div>
+                    <span class="text-[11px] font-medium text-gray-600 dark:text-gray-400 text-center line-clamp-1">${cat.name}</span>
+                `;
+                homeCategoryGrid.appendChild(el);
+            });
+
+            // Add "More" button
+            const moreBtn = document.createElement('div');
+            moreBtn.className = 'flex flex-col items-center gap-2 cursor-pointer transition-transform active:scale-95';
+            moreBtn.innerHTML = `
+                <div class="w-14 h-14 bg-gray-50 dark:bg-[#2c1a12] rounded-2xl flex items-center justify-center text-gray-500 dark:text-gray-400 border border-gray-100 dark:border-[#4d2614] shadow-sm">
+                    <i class="fa-solid fa-table-cells-large text-xl"></i>
+                </div>
+                <span class="text-[11px] font-medium text-gray-600 dark:text-gray-400 text-center line-clamp-1">Thêm</span>
+            `;
+            homeCategoryGrid.appendChild(moreBtn);
+
+        } catch (err) {
+            console.error("Gặp lỗi tải danh mục:", err);
+        }
+    }
+
+    // --- Render Home Places ---
+    const homePlacesList = document.getElementById('homePlacesList');
+    const homeNewPlacesList = document.getElementById('homeNewPlacesList');
+    const homeSuggestedPlacesList = document.getElementById('homeSuggestedPlacesList');
+
+    async function loadHomePlaces() {
+        try {
+            // Load Featured (default sort)
+            if (homePlacesList) {
+                fetch(`${API_URL}/places.php?action=get_places&limit=5`)
+                    .then(res => res.json())
+                    .then(data => renderHorizontalPlaces(homePlacesList, data));
+            }
+
+            // Load New Places (sort=new, limited)
+            if (homeNewPlacesList) {
+                fetch(`${API_URL}/places.php?action=get_places&sort=new&limit=5`)
+                    .then(res => res.json())
+                    .then(data => renderHorizontalPlaces(homeNewPlacesList, data));
+            }
+
+            // Load Suggested/Top Rated (sort=top_rated, limited)
+            if (homeSuggestedPlacesList) {
+                fetch(`${API_URL}/places.php?action=get_places&sort=top_rated&limit=5`)
+                    .then(res => res.json())
+                    .then(data => renderHorizontalPlaces(homeSuggestedPlacesList, data));
+            }
+
+        } catch (err) {
+            console.error("Gặp lỗi tải home places:", err);
+        }
+    }
+
+    function renderHorizontalPlaces(container, data) {
+        let places = [];
+        if (Array.isArray(data)) places = data;
+        else if (data.status === 'success') places = data.data;
+
+        container.innerHTML = '';
+        if (places.length === 0) {
+            container.innerHTML = '<p class="text-sm text-gray-400 px-4">Chưa có dữ liệu</p>';
+            return;
+        }
+
+        places.forEach(place => {
+            const card = document.createElement('div');
+            card.className = 'snap-start w-64 flex-shrink-0 space-y-2 cursor-pointer active:scale-[0.98] transition-transform';
+
+            // IMPORTANT FIX: Use place.thumbnail instead of place.image_url. If raw URL is present, prepend API relative path.
+            let imgUrl = 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?auto=format&fit=crop&q=80&w=400';
+            if (place.thumbnail && place.thumbnail !== 'default_place.jpg') {
+                imgUrl = place.thumbnail.startsWith('http') ? place.thumbnail : `${API_URL}/../${place.thumbnail}`;
+            }
+
+            const rating = Number(place.average_rating || 0).toFixed(1);
+            const reviewCount = Number(place.review_count || 0);
+
+            card.innerHTML = `
+                <div class="aspect-square bg-gray-200 rounded-3xl overflow-hidden relative shadow-md">
+                    <img src="${imgUrl}" class="w-full h-full object-cover">
+                    <div class="absolute top-3 right-3 bg-white/90 text-gray-900 text-[10px] font-bold px-2 py-1 rounded-lg flex items-center gap-1 shadow-sm">
+                        <i class="fa-solid fa-star text-yellow-500"></i> ${rating}
+                    </div>
+                </div>
+                <p class="text-[10px] font-bold text-[#ff5500] uppercase mt-3 line-clamp-1">${place.category_name || 'Khám phá'}</p>
+                <h4 class="font-bold text-[15px] line-clamp-1">${place.name}</h4>
+                <p class="text-[11px] text-gray-500 line-clamp-1"><i class="fa-solid fa-location-dot"></i> ${place.address}</p>
+            `;
+
+            card.addEventListener('click', () => {
+                openPlaceDetail(place, imgUrl, rating, reviewCount);
+            });
+
+            container.appendChild(card);
+        });
+    }
+
+    // Init
+    loadFeed();
+    loadCategories();
+    loadHomePlaces();
+    loadBanners();
+});
+
+// --- Global Context for Inline OnClick ---
+window.toggleFollowUser = async function (btn, authorId) {
+    const user = JSON.parse(localStorage.getItem('user_vtkt'));
+    if (!user) {
+        if (typeof showToast === 'function') showToast("Vui lòng đăng nhập!", "error");
+        else alert("Vui lòng đăng nhập!");
+        return;
+    }
+
+    if (user.id == authorId) {
+        if (typeof showToast === 'function') showToast("Bạn không thể follow chính mình!", "error");
+        return;
+    }
+
+    try {
+        const res = await fetch(`/api/interactions.php`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'toggle_follow', follower_id: user.id, followed_id: authorId })
+        });
+        const data = await res.json();
+
+        if (data.status === 'success') {
+            if (data.following) {
+                btn.innerHTML = '<i class="fa-solid fa-check mr-1"></i>Following';
+                btn.classList.add('bg-gray-100', 'text-gray-500');
+                btn.classList.remove('bg-[#fff5f0]', 'text-[#ff5500]');
+            } else {
+                btn.innerHTML = '<i class="fa-solid fa-plus mr-1"></i>Follow';
+                btn.classList.remove('bg-gray-100', 'text-gray-500');
+                btn.classList.add('bg-[#fff5f0]', 'text-[#ff5500]');
+            }
+            if (typeof showToast === 'function') showToast(data.message, "success");
+        }
+    } catch (e) {
+        console.error(e);
+    }
+};
+
+
+window.shareReview = async function (placeName, content, reviewId) {
+    const shareData = {
+        title: `Đánh giá về ${placeName}`,
+        text: `Đọc bài đánh giá mới nhất về ${placeName} trên KonTum Explore! "${content.substring(0, 50)}..."`,
+        url: `${window.location.origin}?review_id=${reviewId}`
+    };
+    try {
+        if (navigator.share) {
+            await navigator.share(shareData);
+            if (typeof showToast === 'function') showToast("Đã chia sẻ thành công!", "success");
+        } else {
+            await navigator.clipboard.writeText(shareData.url);
+            if (typeof showToast === 'function') showToast("Đã copy link bài viết!", "success");
+        }
+    } catch (e) { }
+};
+
+// --- Comment UI Logic ---
+const commentsModal = document.getElementById('commentsModal');
+const closeCommentsModal = document.getElementById('closeCommentsModal');
+const commentsList = document.getElementById('commentsList');
+const commentForm = document.getElementById('commentForm');
+const commentInput = document.getElementById('commentInput');
+const commentReviewId = document.getElementById('commentReviewId');
+
+if (closeCommentsModal) {
+    closeCommentsModal.addEventListener('click', () => {
+        const inner = commentsModal.querySelector('div');
+        inner.classList.add('translate-y-full');
+        setTimeout(() => commentsModal.classList.add('hidden'), 300);
+    });
+}
+
+window.openComments = async function (reviewId) {
+    if (!commentsModal) return;
+    commentReviewId.value = reviewId;
+
+    // Gán avatar user hiện tại
+    const user = JSON.parse(localStorage.getItem('user_vtkt'));
+    if (user && document.getElementById('commentUserAvatar')) {
+        document.getElementById('commentUserAvatar').innerHTML = `<img src="${(user.avatar && user.avatar !== 'default_avatar.png') ? user.avatar : `https://ui-avatars.com/api/?name=${encodeURIComponent(user.fullname)}&background=random`}" class="w-full h-full object-cover">`;
+    }
+
+    commentsModal.classList.remove('hidden');
+    setTimeout(() => {
+        commentsModal.querySelector('div').classList.remove('translate-y-full');
+    }, 10);
+
+    await loadComments(reviewId);
+};
+
+async function loadComments(reviewId) {
+    commentsList.innerHTML = '<div class="text-center py-10"><i class="fa-solid fa-spinner fa-spin text-2xl text-primary"></i></div>';
+    try {
+        const res = await fetch(`/api/interactions.php?action=get_comments&review_id=${reviewId}`);
+        const comments = await res.json();
+
+        if (comments.length === 0) {
+            commentsList.innerHTML = `
+                <div class="flex flex-col items-center justify-center h-full text-gray-400 py-10">
+                    <i class="fa-regular fa-comments text-4xl mb-3"></i>
+                    <p>Chưa có bình luận nào. Hãy là người đầu tiên!</p>
+                </div>`;
+            return;
+        }
+
+        commentsList.innerHTML = '';
+        comments.forEach(c => {
+            const el = document.createElement('div');
+            el.className = 'flex gap-3 items-start mb-4';
+            el.innerHTML = `
+                <img src="${(c.avatar && c.avatar !== 'default_avatar.png') ? c.avatar : `https://ui-avatars.com/api/?name=${encodeURIComponent(c.fullname)}&background=random`}" class="w-8 h-8 rounded-full object-cover shadow-sm bg-gray-200 flex-shrink-0">
+                <div class="flex-1 bg-gray-50 dark:bg-gray-800 p-3 rounded-2xl rounded-tl-none">
+                    <h5 class="font-bold text-xs text-gray-800 dark:text-gray-300 mb-1 flex justify-between items-center">
+                        ${c.fullname} 
+                        <span class="font-normal text-[10px] text-gray-400">${c.created_at}</span>
+                    </h5>
+                    <p class="text-sm text-gray-700 dark:text-gray-200">${c.content}</p>
+                </div>
+            `;
+            commentsList.appendChild(el);
+        });
+
+        // Scroll to bottom
+        setTimeout(() => commentsList.scrollTop = commentsList.scrollHeight, 100);
+    } catch (e) {
+        commentsList.innerHTML = '<p class="text-center text-red-500">Lỗi tải bình luận</p>';
+    }
+}
+
+if (commentForm) {
+    commentForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const user = JSON.parse(localStorage.getItem('user_vtkt'));
+        if (!user) return typeof showToast === 'function' ? showToast("Vui lòng đăng nhập!", "error") : alert("Vui lòng đăng nhập!");
+
+        const reviewId = commentReviewId.value;
+        const content = commentInput.value.trim();
+        if (!content) return;
+
+        const btn = commentForm.querySelector('button[type="submit"]');
+        btn.disabled = true;
+
+        try {
+            const res = await fetch(`/api/interactions.php`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'add_comment', user_id: user.id, review_id: reviewId, content: content })
+            });
+            const data = await res.json();
+            if (data.status === 'success') {
+                commentInput.value = '';
+                await loadComments(reviewId);
+            }
+        } catch (e) { }
+        finally {
+            btn.disabled = false;
+        }
+    });
+}
+
+// --- Global Functions ---
+window.toggleLikeReview = async (btn, reviewId) => {
+    const user = JSON.parse(localStorage.getItem('user_vtkt'));
+    if (!user) {
+        if (typeof showToast === 'function') showToast("Vui lòng đăng nhập để thả tim!", "error");
+        else alert("Vui lòng đăng nhập!");
+        return;
+    }
+
+    try {
+        const res = await fetch(`${API_URL}/interactions.php`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'toggle_like', user_id: user.id, review_id: reviewId })
+        });
+        const data = await res.json();
+        if (data.status === 'success') {
+            const icon = btn.querySelector('i');
+            const span = btn.querySelector('span');
+            let count = parseInt(span.textContent);
+
+            if (data.liked) {
+                icon.classList.replace('fa-regular', 'fa-solid');
+                btn.classList.add('text-[#ff5500]');
+                btn.classList.remove('text-gray-400');
+                count++;
+            } else {
+                icon.classList.replace('fa-solid', 'fa-regular');
+                btn.classList.remove('text-[#ff5500]');
+                btn.classList.add('text-gray-400');
+                count--;
+            }
+            span.textContent = count;
+        }
+    } catch (e) { console.error(e); }
+};
+
+window.toggleSaveReview = async (btn, reviewId) => {
+    const user = JSON.parse(localStorage.getItem('user_vtkt'));
+    if (!user) {
+        if (typeof showToast === 'function') showToast("Vui lòng đăng nhập để lưu!", "error");
+        else alert("Vui lòng đăng nhập!");
+        return;
+    }
+
+    try {
+        const res = await fetch(`${API_URL}/interactions.php`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'toggle_save', user_id: user.id, entity_type: 'review', entity_id: reviewId })
+        });
+        const data = await res.json();
+        if (data.status === 'success') {
+            const icon = btn.querySelector('i');
+            if (data.saved) {
+                icon.classList.replace('fa-regular', 'fa-solid');
+                btn.classList.add('text-red-500');
+                btn.classList.remove('text-gray-400');
+            } else {
+                icon.classList.replace('fa-solid', 'fa-regular');
+                btn.classList.remove('text-red-500');
+                btn.classList.add('text-gray-400');
+            }
+            if (typeof showToast === 'function') showToast(data.message, "success");
+        }
+    } catch (e) { console.error(e); }
+};

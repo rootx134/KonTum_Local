@@ -1,0 +1,1545 @@
+<!DOCTYPE html>
+<html lang="vi" data-theme="light">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Địa điểm Kon Tum</title>
+    <link rel="icon" type="image/png" href="https://fc.kontumplus.com/favicon.png">
+
+    <!-- PWA Settings -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#ff5500">
+    <link rel="apple-touch-icon" href="https://fc.kontumplus.com/favicon.png">
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    colors: {
+                        primary: '#ff5500', // Màu cam từ ảnh
+                        primaryDark: '#e64d00',
+                        bgGray: '#f8f8f8',
+                        darkBg: '#121212',
+                        darkCard: '#1c1c1e'
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- FontAwesome icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <link rel="stylesheet" href="assets/css/styles.css">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+            animation: slideUp 0.3s ease-out;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .scrollbar-hide::-webkit-scrollbar {
+            display: none;
+        }
+
+        .glass-nav {
+            backdrop-filter: blur(10px);
+            background-color: rgba(255, 255, 255, 0.9);
+        }
+
+        .dark .glass-nav {
+            background-color: rgba(28, 28, 30, 0.9);
+        }
+
+        /* ── Map Tab: full-height ── */
+        #tab-map {
+            padding: 0 !important;
+        }
+
+        #leafletMap {
+            width: 100%;
+            height: 100%;
+        }
+
+        #mapWrapper {
+            position: relative;
+            height: calc(100vh - 130px);
+        }
+
+        /* ── Leaflet Custom Marker ── */
+        .map-marker-pin {
+            width: 36px;
+            height: 36px;
+            border-radius: 50% 50% 50% 0;
+            transform: rotate(-45deg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);
+        }
+
+        .map-marker-pin i {
+            transform: rotate(45deg);
+            color: #fff;
+            font-size: 14px;
+        }
+
+        .map-marker-tail {
+            width: 0;
+            height: 0;
+            border-left: 6px solid transparent;
+            border-right: 6px solid transparent;
+            border-top: 8px solid #ff5500;
+            margin: 0 auto;
+        }
+
+        /* ── Leaflet Popup ── */
+        .leaflet-custom-popup .leaflet-popup-content-wrapper {
+            border-radius: 16px;
+            padding: 0;
+            overflow: hidden;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+            border: none;
+        }
+
+        .leaflet-custom-popup .leaflet-popup-content {
+            margin: 0;
+            width: 250px !important;
+        }
+
+        .leaflet-custom-popup .leaflet-popup-tip-container {
+            margin-top: -1px;
+        }
+
+        .map-popup-img {
+            width: 100%;
+            height: 130px;
+            object-fit: cover;
+        }
+
+        .map-popup-body {
+            padding: 12px;
+        }
+
+        .map-popup-cat {
+            display: inline-block;
+            color: #fff;
+            font-size: 10px;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 6px;
+            margin-bottom: 4px;
+        }
+
+        .map-popup-name {
+            font-size: 15px;
+            font-weight: 800;
+            margin: 0 0 4px;
+            color: #1a1c3d;
+        }
+
+        .map-popup-addr {
+            font-size: 11px;
+            color: #6b7280;
+            margin: 0 0 8px;
+        }
+
+        .map-popup-meta {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 10px;
+        }
+
+        .map-popup-meta .stars {
+            color: #f59e0b;
+            font-size: 12px;
+        }
+
+        .map-popup-meta .rev-count {
+            font-size: 11px;
+            color: #9ca3af;
+        }
+
+        .map-popup-btn {
+            width: 100%;
+            background: #ff5500;
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            padding: 9px;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .map-popup-btn:hover {
+            background: #e64d00;
+        }
+
+        /* ── Map Filter bar ── */
+        .map-filter-bar {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            padding: 10px 16px;
+            scrollbar-width: none;
+        }
+
+        .map-filter-bar::-webkit-scrollbar {
+            display: none;
+        }
+
+        .map-filter-btn {
+            white-space: nowrap;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 700;
+            background: #f3f4f6;
+            color: #374151;
+            border: 1.5px solid transparent;
+            cursor: pointer;
+            transition: all .2s;
+        }
+
+        .dark .map-filter-btn {
+            background: #2c2c2e;
+            color: #d1d5db;
+        }
+
+        .map-filter-btn.active-filter {
+            background: #ff5500;
+            color: #fff;
+            border-color: #ff5500;
+        }
+
+        /* ── Map Control Buttons ── */
+        #mapLocateBtn {
+            position: absolute;
+            bottom: 24px;
+            right: 16px;
+            z-index: 9999;
+            width: 44px;
+            height: 44px;
+            background: #fff;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.18);
+            border: none;
+            cursor: pointer;
+            color: #ff5500;
+            font-size: 18px;
+        }
+
+        .dark #mapLocateBtn {
+            background: #2c2c2e;
+            color: #ff5500;
+        }
+
+        #mapInfoBar {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 4px 14px;
+            font-size: 12px;
+            font-weight: 700;
+            color: #374151;
+            z-index: 9999;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+        }
+
+        .dark #mapInfoBar {
+            background: rgba(28, 28, 30, 0.95);
+            color: #d1d5db;
+        }
+    </style>
+</head>
+
+<body
+    class="bg-white dark:bg-darkBg text-gray-900 dark:text-gray-100 antialiased h-screen flex flex-col overflow-hidden relative">
+
+    <!-- Top Status Bar -->
+    <div
+        class="px-6 py-4 flex justify-between items-center bg-white dark:bg-darkBg sticky top-0 z-40 shadow-sm border-b border-gray-100 dark:border-gray-800">
+        <h1 class="font-black text-xl tracking-tight flex items-center gap-2"><img
+                src="https://fc.kontumplus.com/favicon.png" class="w-6 h-6 rounded"> Địa Điểm Kon Tum</h1>
+        <div class="flex items-center gap-4">
+            <button id="btnOpenNotifications"
+                class="bg-orange-50 text-[#ff5500] hover:bg-orange-100 w-10 h-10 rounded-full flex items-center justify-center transition relative">
+                <i class="fa-solid fa-bell text-lg"></i>
+                <span id="notifBadge" class="absolute -top-1 -right-1 flex h-3 w-3 hidden">
+                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                    <span class="relative inline-flex rounded-full h-3 w-3 bg-red-500 text-[8px] font-bold text-white items-center justify-center">0</span>
+                </span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Main Scrollable Area -->
+    <main id="appContent" class="flex-1 overflow-y-auto pb-24 z-10 overflow-x-hidden">
+
+        <!-- Tab: Trang chủ -->
+        <section id="tab-home" class="tab-content active px-4 space-y-6">
+            <!-- Search -->
+            <div class="mt-2">
+                <div class="relative w-full">
+                    <div class="bg-[#f0f0f0] dark:bg-[#2c2c2e] rounded-full flex items-center px-4 relative z-20">
+                        <i class="fa-solid fa-magnifying-glass text-gray-400 mr-2"></i>
+                        <input type="text" id="mainSearchInput" placeholder="Tìm kiếm địa điểm..."
+                            class="bg-transparent border-none focus:ring-0 text-sm w-full py-3 outline-none"
+                            autocomplete="off">
+                    </div>
+                    <!-- Dropdown Kết quả Tìm Kiếm -->
+                    <div id="searchSuggestionsList"
+                        class="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-darkCard rounded-2xl shadow-xl max-h-72 overflow-y-auto hidden border border-gray-100 dark:border-gray-800 z-50 divide-y divide-gray-50 dark:divide-gray-800/50">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Hero Carousel -->
+            <div class="relative rounded-3xl overflow-hidden aspect-[16/7] shadow-lg">
+                <div id="heroBannerImages"
+                    class="flex h-full w-full transition-transform duration-500 ease-in-out text-white bg-gray-200">
+                    <img src="https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&q=80&w=800"
+                        class="w-full min-w-full h-full object-cover">
+                </div>
+                <!-- Indicators -->
+                <div id="heroBannerIndicators" class="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5 z-10">
+                    <div class="w-4 h-1.5 bg-[#ff5500] rounded-full"></div>
+                </div>
+            </div>
+
+            <!-- Category Grid -->
+            <div id="homeCategoryGrid"
+                class="bg-white dark:bg-darkCard rounded-3xl shadow-[0_4px_20px_rgba(0,0,0,0.05)] p-4 grid grid-cols-4 gap-y-4 gap-x-2">
+                <!-- Danh mục sẽ được load từ JS -->
+            </div>
+
+            <!-- Suggested Places Section -->
+            <div>
+                <div class="flex justify-between items-center mb-4 mt-2">
+                    <h2 class="text-xl font-extrabold text-[#1a1c3d] dark:text-white">Gợi ý cho bạn</h2>
+                    <i class="fa-solid fa-chevron-right text-[#ff5500]"></i>
+                </div>
+                <div id="homeSuggestedPlacesList"
+                    class="flex gap-4 overflow-x-auto pb-4 scrollbar-hide snap-x transition-opacity duration-300">
+                    <!-- Danh sách địa điểm load từ JS -->
+                </div>
+            </div>
+
+            <!-- Featured / All Places Section -->
+            <div>
+                <div class="flex justify-between items-center mb-4 mt-2">
+                    <h2 class="text-xl font-extrabold text-[#1a1c3d] dark:text-white">Địa điểm nổi bật</h2>
+                    <i class="fa-solid fa-chevron-right text-[#ff5500]"></i>
+                </div>
+                <div id="homePlacesList"
+                    class="flex gap-4 overflow-x-auto pb-4 scrollbar-hide snap-x transition-opacity duration-300">
+                    <!-- Danh sách địa điểm load từ JS -->
+                </div>
+            </div>
+
+            <!-- New Places Section -->
+            <div>
+                <div class="flex justify-between items-center mb-4 mt-2">
+                    <h2 class="text-xl font-extrabold text-[#1a1c3d] dark:text-white">Địa điểm mới</h2>
+                    <i class="fa-solid fa-chevron-right text-[#ff5500]"></i>
+                </div>
+                <div id="homeNewPlacesList"
+                    class="flex gap-4 overflow-x-auto pb-4 scrollbar-hide snap-x transition-opacity duration-300">
+                    <!-- Danh sách địa điểm load từ JS -->
+                </div>
+            </div>
+        </section>
+
+        <!-- Tab: Khám Phá -->
+        <section id="tab-explore" class="tab-content px-4 space-y-4">
+            <h2 class="text-2xl font-bold p-2">Cộng đồng</h2>
+            <div id="feedContainer" class="space-y-4 pb-10">
+                <!-- Feed articles loaded via JS -->
+            </div>
+        </section>
+
+        <!-- Tab: Đổi Thưởng -->
+        <section id="tab-rewards" class="tab-content px-4 py-8 text-center space-y-6">
+            <div
+                class="w-32 h-32 mx-auto rounded-full bg-gradient-to-b from-[#fff5f0] to-white dark:from-[#2c1a12] dark:to-darkCard flex items-center justify-center shadow-inner border border-[#ffe0d1] dark:border-[#4d2614]">
+                <i class="fa-solid fa-gift text-6xl text-[#ff5500]"></i>
+            </div>
+            <h2 class="text-2xl font-bold mt-2">Tính năng Đổi Thưởng</h2>
+            <p class="text-gray-500">Chức năng tích lũy điểm đổi lấy eVoucher đang được phát triển. Bạn sẽ sớm đổi được
+                quà từ điểm thưởng đóng góp!</p>
+            <div class="flex gap-4 w-full mt-6 max-w-sm mx-auto items-stretch">
+                <!-- Điểm Box -->
+                <div
+                    class="flex-1 flex flex-col items-center justify-center py-6 px-4 rounded-3xl bg-gradient-to-b from-[#fff5f0] to-white dark:from-[#2c1a12] dark:to-darkCard border border-[#ffe0d1] dark:border-[#4d2614] shadow-sm relative overflow-hidden">
+                    <div class="absolute top-0 right-0 w-24 h-24 bg-[#ff5500] rounded-full blur-3xl opacity-10"></div>
+                    <span
+                        class="text-[13px] font-bold text-gray-500 dark:text-gray-400 mb-2 z-10 uppercase tracking-wide">Điểm
+                        tích lũy</span>
+                    <div class="flex items-end gap-1.5 z-10">
+                        <span id="rewardsTabPoints"
+                            class="text-5xl font-black text-[#ff5500] leading-none tracking-tighter">0</span>
+                        <i class="fa-solid fa-bolt-lightning text-[#ff5500] text-3xl mb-1"></i>
+                    </div>
+                </div>
+
+                <!-- Nút Lịch Sử Bên Cạnh -->
+                <button id="btnOpenPointsHistory"
+                    class="w-24 bg-white dark:bg-darkCard hover:bg-gray-50 dark:hover:bg-[#2c2c2e] border border-gray-100 dark:border-gray-800 rounded-3xl shadow-sm transition flex flex-col items-center justify-center gap-3 active:scale-95 group">
+                    <div
+                        class="w-12 h-12 rounded-2xl bg-gray-50 dark:bg-gray-800 flex items-center justify-center text-gray-400 group-hover:text-[#ff5500] transition-colors">
+                        <i class="fa-solid fa-clock-rotate-left text-xl"></i>
+                    </div>
+                    <span class="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest">Lịch
+                        sử</span>
+                </button>
+            </div>
+        </section>
+
+        <!-- Tab: Tài Khoản (Profile) -->
+        <section id="tab-profile" class="tab-content bg-bgGray dark:bg-darkBg min-h-full pb-24">
+
+            <!-- Guest View -->
+            <div id="profileGuestView"
+                class="hidden flex-col items-center justify-center min-h-full py-12 px-6 text-center">
+
+                <div
+                    class="w-full max-w-sm mx-auto bg-white dark:bg-darkCard p-6 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-800">
+                    <img src="https://fc.kontumplus.com/favicon.png"
+                        class="w-14 h-14 mx-auto rounded-2xl shadow-md mb-4 bg-white p-1">
+                    <h3 class="text-2xl font-black mb-1 dark:text-white" id="profileAuthTitle">Đăng nhập</h3>
+                    <p class="text-gray-500 text-xs mb-6 px-2" id="profileAuthSubtitle">Chào mừng trở lại! Vui lòng đăng
+                        nhập để trải nghiệm.</p>
+
+                    <!-- Login Form -->
+                    <div id="authFormsContainer">
+                        <form id="profileLoginForm" class="w-full space-y-4 text-left">
+                            <div class="relative">
+                                <i class="fa-regular fa-user absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                                <input type="email" id="profileLoginUsername" placeholder="Email"
+                                    class="w-full pl-11 pr-4 py-3.5 bg-gray-50 dark:bg-gray-800 border-transparent rounded-2xl focus:ring-2 focus:ring-[#ff5500] focus:bg-white dark:focus:bg-gray-700 transition-all outline-none font-medium text-sm">
+                            </div>
+                            <div class="relative">
+                                <i class="fa-solid fa-lock absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                                <input type="password" id="profileLoginPassword" placeholder="Mật khẩu"
+                                    class="w-full pl-11 pr-4 py-3.5 bg-gray-50 dark:bg-gray-800 border-transparent rounded-2xl focus:ring-2 focus:ring-[#ff5500] focus:bg-white dark:focus:bg-gray-700 transition-all outline-none font-medium text-sm">
+                            </div>
+                            <div class="flex items-center justify-end w-full pb-1">
+                                <button type="button" id="forgotPasswordLinkBtn" class="text-xs font-semibold text-[#ff5500] hover:text-[#e64d00] transition-colors focus:outline-none">Quên mật khẩu?</button>
+                            </div>
+                            <button type="submit"
+                                class="w-full flex justify-center items-center gap-2 bg-[#1a1c3d] hover:bg-[#252850] dark:bg-[#ff5500] dark:hover:bg-[#e64d00] text-white font-bold py-3.5 rounded-2xl shadow-md transition transform active:scale-95 text-sm">
+                                Đăng nhập
+                            </button>
+                        </form>
+
+                        <!-- Register Form -->
+                        <form id="profileRegisterForm" class="hidden w-full space-y-4 text-left">
+                            <div class="relative">
+                                <i class="fa-regular fa-id-card absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                                <input type="text" id="profileRegFullname" placeholder="Họ và tên"
+                                    class="w-full pl-11 pr-4 py-3.5 bg-gray-50 dark:bg-gray-800 border-transparent rounded-2xl focus:ring-2 focus:ring-[#ff5500] focus:bg-white dark:focus:bg-gray-700 transition-all outline-none font-medium text-sm">
+                            </div>
+                            <div class="relative">
+                                <i class="fa-regular fa-user absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                                <input type="email" id="profileRegUsername" placeholder="Email"
+                                    class="w-full pl-11 pr-4 py-3.5 bg-gray-50 dark:bg-gray-800 border-transparent rounded-2xl focus:ring-2 focus:ring-[#ff5500] focus:bg-white dark:focus:bg-gray-700 transition-all outline-none font-medium text-sm">
+                            </div>
+                            <div class="relative">
+                                <i class="fa-solid fa-lock absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                                <input type="password" id="profileRegPassword" placeholder="Mật khẩu"
+                                    class="w-full pl-11 pr-4 py-3.5 bg-gray-50 dark:bg-gray-800 border-transparent rounded-2xl focus:ring-2 focus:ring-[#ff5500] focus:bg-white dark:focus:bg-gray-700 transition-all outline-none font-medium text-sm">
+                            </div>
+                            <button type="submit"
+                                class="w-full bg-gradient-to-r flex justify-center items-center gap-2 from-[#ff5500] to-[#ff8c00] hover:to-[#e64d00] text-white font-bold py-3.5 rounded-2xl shadow-md transition transform active:scale-95 text-sm">
+                                Tạo tài khoản
+                            </button>
+                        </form>
+                        
+                        <!-- Forgot Password Form -->
+                        <form id="profileForgotPasswordForm" class="hidden w-full space-y-4 text-left">
+                            <div class="relative">
+                                <i class="fa-regular fa-envelope absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                                <input type="email" id="profileForgotEmail" placeholder="Nhập email của bạn"
+                                    class="w-full pl-11 pr-4 py-3.5 bg-gray-50 dark:bg-gray-800 border-transparent rounded-2xl focus:ring-2 focus:ring-[#ff5500] focus:bg-white dark:focus:bg-gray-700 transition-all outline-none font-medium text-sm" required>
+                            </div>
+                            <button type="submit"
+                                class="w-full flex justify-center items-center gap-2 bg-[#ff5500] hover:bg-[#e64d00] text-white font-bold py-3.5 rounded-2xl shadow-md transition transform active:scale-95 text-sm">
+                                Gửi liên kết đặt lại
+                            </button>
+                            <div class="mt-4 text-center">
+                                <button type="button" id="backToLoginBtn" class="text-sm text-gray-500 hover:text-[#ff5500] transition-colors font-medium focus:outline-none">
+                                    <i class="fa-solid fa-arrow-left mr-1"></i> Quay lại đăng nhập
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div id="socialLoginSection" class="mt-6">
+                        <div class="relative">
+                            <div class="absolute inset-0 flex items-center">
+                                <div class="w-full border-t border-gray-100 dark:border-gray-800"></div>
+                            </div>
+                            <div class="relative flex justify-center text-sm">
+                                <span class="px-3 bg-white dark:bg-darkCard text-gray-400 text-[11px] font-semibold uppercase tracking-wider">Hoặc tiếp tục với</span>
+                            </div>
+                        </div>
+                        <div class="mt-5 grid grid-cols-2 gap-3">
+                            <button type="button" class="flex items-center justify-center w-full px-4 py-2.5 border border-gray-200 dark:border-gray-700 rounded-xl shadow-[0_2px_10px_-3px_rgba(0,0,0,0.05)] bg-white dark:bg-[#1a1c1e] text-sm font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all active:scale-95 group">
+                                <img class="h-4 w-4 mr-2 group-hover:scale-110 transition-transform" src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Google">
+                                Google
+                            </button>
+                            <button type="button" class="flex items-center justify-center w-full px-4 py-2.5 border border-gray-200 dark:border-gray-700 rounded-xl shadow-[0_2px_10px_-3px_rgba(0,0,0,0.05)] bg-white dark:bg-[#1a1c1e] text-sm font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all active:scale-95 group">
+                                <img class="h-4 w-4 mr-2 group-hover:scale-110 transition-transform" src="https://www.svgrepo.com/show/475647/facebook-color.svg" alt="Facebook">
+                                Facebook
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="authToggleSection" class="mt-6 text-sm text-gray-500">
+                        <span id="profileAuthToggleText">Chưa có tài khoản?</span>
+                        <button id="profileAuthToggleBtn" type="button"
+                            class="text-[#ff5500] font-bold hover:underline ml-1 focus:outline-none">Đăng ký ngay</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="profileContent" class="hidden">
+                <!-- Header Info -->
+                <div class="bg-white dark:bg-darkCard px-6 pt-10 pb-8 rounded-b-[40px] shadow-sm relative">
+                    <div class="flex items-center gap-5">
+                        <div class="relative group cursor-pointer"
+                            onclick="document.getElementById('avatarUploadInput').click()">
+                            <img src="https://images.unsplash.com/photo-1544005313-94ff6a00c24c?auto=format&fit=crop&q=80&w=150"
+                                id="profileAvatar"
+                                class="w-20 h-20 rounded-full border-2 border-white dark:border-gray-800 object-cover shadow-md transition-opacity group-hover:opacity-70"
+                                alt="Avatar">
+                            <div
+                                class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                <i class="fa-solid fa-camera text-white drop-shadow-md"></i>
+                            </div>
+                            <input type="file" id="avatarUploadInput" accept="image/*" class="hidden">
+                        </div>
+                        <div class="flex-1">
+                            <h3 class="text-xl font-extrabold" id="userNameProfile">Quản trị viên</h3>
+                            <p class="text-gray-400 text-sm">Tài khoản: <span id="userAccountName">admin</span></p>
+                        </div>
+                        <button id="editProfileBtn"
+                            class="w-10 h-10 bg-[#fff5f0] text-[#ff5500] rounded-full flex items-center justify-center shadow-sm border border-[#ffe0d1]">
+                            <i class="fa-solid fa-pen-to-square text-lg"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Stats Bar -->
+                <div class="px-6 -mt-6">
+                    <div
+                        class="bg-white dark:bg-darkCard rounded-3xl p-5 shadow-lg flex justify-around border border-gray-50 dark:border-[#2c2c2e]">
+                        <div class="flex-1 text-center">
+                            <p class="text-[#ff5500] text-xl font-black" id="profileSavedCount">0</p>
+                            <p class="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Đã lưu</p>
+                        </div>
+                        <div class="w-px h-10 bg-gray-100 dark:bg-[#3a3a3c] mx-2"></div>
+                        <div class="flex-1 text-center">
+                            <p class="text-[#ff5500] text-xl font-black" id="profileReviewCount">0</p>
+                            <p class="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Đánh giá</p>
+                        </div>
+                        <div class="w-px h-10 bg-gray-100 dark:bg-[#3a3a3c] mx-2"></div>
+                        <div class="flex-1 text-center">
+                            <p class="text-[#ff5500] text-xl font-black" id="profileFollowerCount">0</p>
+                            <p class="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Theo dõi</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Menu List -->
+                <div class="px-6 py-8 space-y-8">
+                    <div>
+                        <h4
+                            class="text-[13px] font-black text-gray-900 dark:text-gray-200 mb-4 px-1 uppercase tracking-widest">
+                            Tài khoản của tôi</h4>
+                        <div
+                            class="bg-white dark:bg-darkCard rounded-3xl overflow-hidden shadow-sm border border-gray-50 dark:border-[#2c2c2e]">
+                            <button id="btnOpenSavedPlaces"
+                                class="w-full flex items-center gap-4 p-5 hover:bg-gray-50 dark:hover:bg-[#2c2c2e] transition text-left group">
+                                <div
+                                    class="w-10 h-10 rounded-2xl bg-gray-50 dark:bg-[#121212] flex items-center justify-center text-gray-600 dark:text-gray-400">
+                                    <i class="fa-regular fa-bookmark"></i>
+                                </div>
+                                <span class="flex-1 font-bold text-[15px]">Địa điểm đã lưu</span>
+                                <i
+                                    class="fa-solid fa-chevron-right text-gray-300 group-hover:text-[#ff5500] transition"></i>
+                            </button>
+                            <div class="h-px bg-gray-50 dark:bg-[#2c2c2e] mx-5"></div>
+                            <button id="btnOpenSavedReviews"
+                                class="w-full flex items-center gap-4 p-5 hover:bg-gray-50 dark:hover:bg-[#2c2c2e] transition text-left group">
+                                <div
+                                    class="w-10 h-10 rounded-2xl bg-gray-50 dark:bg-[#121212] flex items-center justify-center text-gray-600 dark:text-gray-400">
+                                    <i class="fa-solid fa-bookmark text-[#ff5500]"></i>
+                                </div>
+                                <span class="flex-1 font-bold text-[15px]">Đánh giá đã lưu</span>
+                                <i
+                                    class="fa-solid fa-chevron-right text-gray-300 group-hover:text-[#ff5500] transition"></i>
+                            </button>
+                            <div class="h-px bg-gray-50 dark:bg-[#2c2c2e] mx-5"></div>
+                            <button id="btnOpenMyReviews"
+                                class="w-full flex items-center gap-4 p-5 hover:bg-gray-50 dark:hover:bg-[#2c2c2e] transition text-left group">
+                                <div
+                                    class="w-10 h-10 rounded-2xl bg-gray-50 dark:bg-[#121212] flex items-center justify-center text-gray-600 dark:text-gray-400">
+                                    <i class="fa-regular fa-star"></i>
+                                </div>
+                                <span class="flex-1 font-bold text-[15px]">Bài đánh giá của tôi</span>
+                                <i
+                                    class="fa-solid fa-chevron-right text-gray-300 group-hover:text-[#ff5500] transition"></i>
+                            </button>
+                            <div class="h-px bg-gray-50 dark:bg-[#2c2c2e] mx-5"></div>
+                            <div class="flex items-center gap-4 p-5">
+                                <div
+                                    class="w-10 h-10 rounded-2xl bg-gray-50 dark:bg-[#121212] flex items-center justify-center text-gray-600 dark:text-gray-400">
+                                    <i class="fa-solid fa-moon"></i>
+                                </div>
+                                <span class="flex-1 font-bold text-[15px]">Giao diện tối</span>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" id="darkModeSwitch" class="sr-only peer">
+                                    <div
+                                        class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-[#ff5500]">
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <h4
+                            class="text-[13px] font-black text-gray-900 dark:text-gray-200 mb-4 px-1 uppercase tracking-widest">
+                            Khác</h4>
+                        <div
+                            class="bg-white dark:bg-darkCard rounded-3xl overflow-hidden shadow-sm border border-gray-50 dark:border-[#2c2c2e]">
+                            <button id="btnOpenAdmin"
+                                class="hidden w-full flex items-center gap-4 p-5 hover:bg-gray-50 dark:hover:bg-[#2c2c2e] transition text-left group">
+                                <div
+                                    class="w-10 h-10 rounded-2xl bg-red-50 dark:bg-red-900/20 flex items-center justify-center text-red-500">
+                                    <i class="fa-solid fa-shield-halved"></i>
+                                </div>
+                                <span class="flex-1 font-bold text-[15px] text-red-500">Bảng điều khiển Admin</span>
+                                <i class="fa-solid fa-chevron-right text-gray-300"></i>
+                            </button>
+                            <div id="adminDivider" class="hidden h-px bg-gray-50 dark:bg-[#2c2c2e] mx-5"></div>
+                            <button id="btnOpenSettings"
+                                class="w-full flex items-center gap-4 p-5 hover:bg-gray-50 dark:hover:bg-[#2c2c2e] transition text-left group">
+                                <div
+                                    class="w-10 h-10 rounded-2xl bg-gray-50 dark:bg-[#121212] flex items-center justify-center text-gray-600 dark:text-gray-400 group-hover:bg-[#ff5500] group-hover:text-white transition-colors">
+                                    <i class="fa-solid fa-gear"></i>
+                                </div>
+                                <span class="flex-1 font-bold text-[15px]">Cài đặt tài khoản</span>
+                                <i class="fa-solid fa-chevron-right text-gray-300"></i>
+                            </button>
+                            <div class="h-px bg-gray-50 dark:bg-[#2c2c2e] mx-5"></div>
+                            <button
+                                class="w-full flex items-center gap-4 p-5 hover:bg-gray-50 dark:hover:bg-[#2c2c2e] transition text-left group">
+                                <div
+                                    class="w-10 h-10 rounded-2xl bg-gray-50 dark:bg-[#121212] flex items-center justify-center text-gray-600 dark:text-gray-400">
+                                    <i class="fa-regular fa-circle-question"></i>
+                                </div>
+                                <span class="flex-1 font-bold text-[15px]">Trung tâm trợ giúp</span>
+                                <i class="fa-solid fa-chevron-right text-gray-300"></i>
+                            </button>
+                            <div class="h-px bg-gray-50 dark:bg-[#2c2c2e] mx-5"></div>
+                            <button class="w-full flex items-center gap-4 p-5 transition text-left group"
+                                id="logoutBtnProfile">
+                                <div
+                                    class="w-10 h-10 rounded-2xl bg-[#fff5f0] text-red-500 flex items-center justify-center">
+                                    <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                                </div>
+                                <span class="flex-1 font-bold text-[15px] text-red-500">Đăng xuất</span>
+                            </button>
+                        </div>
+                    </div>
+                </div> <!-- End profileContent -->
+        </section>
+    </main>
+
+    <!-- Modal: Chỉnh Sửa Địa Điểm (Dành cho Admin) -->
+    <div id="editPlaceModal"
+        class="hidden fixed inset-0 z-[10000] bg-white dark:bg-darkBg flex flex-col translate-y-full transition-transform duration-300">
+        <div class="flex items-center justify-between p-4 border-b border-gray-100 dark:border-white/5">
+            <button id="closeEditPlaceModal" class="p-2 text-gray-400"><i class="fa-solid fa-chevron-left"></i></button>
+            <h3 class="font-black text-lg">Chỉnh sửa địa điểm</h3>
+            <button id="submitEditPlaceBtn"
+                class="bg-blue-500 text-white px-5 py-1.5 rounded-full text-sm font-bold">Lưu</button>
+        </div>
+        <div class="flex-1 overflow-y-auto p-6 space-y-6">
+            <div class="space-y-4">
+                <div class="space-y-2">
+                    <label class="text-xs font-black uppercase text-gray-400 tracking-widest pl-1">Tên địa điểm</label>
+                    <input type="hidden" id="editPlaceId">
+                    <input type="text" id="editPlaceName" placeholder="Tên địa điểm..."
+                        class="w-full p-4 bg-gray-50 dark:bg-gray-800 rounded-2xl outline-none font-bold">
+                </div>
+                <div class="grid grid-cols-1 gap-4">
+                    <div class="space-y-2">
+                        <label class="text-xs font-black uppercase text-gray-400 tracking-widest pl-1">Danh mục</label>
+                        <select id="editPlaceCategory"
+                            class="w-full p-4 bg-gray-50 dark:bg-gray-800 rounded-2xl outline-none font-bold appearance-none">
+                            <option value="1">Ăn uống</option>
+                            <option value="4">Du lịch</option>
+                            <option value="2">Giải trí</option>
+                            <option value="3">Khách sạn</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="space-y-2">
+                    <label class="text-xs font-black uppercase text-gray-400 tracking-widest pl-1">Địa chỉ chính
+                        xác</label>
+                    <input type="text" id="editPlaceAddress" autocomplete="off" placeholder="Địa chỉ hiện tại..."
+                        class="w-full p-4 bg-gray-50 dark:bg-gray-800 rounded-2xl outline-none font-bold">
+                </div>
+                <div class="space-y-2">
+                    <label class="text-xs font-black uppercase text-gray-400 tracking-widest pl-1">Mô tả ngắn</label>
+                    <textarea id="editPlaceDesc" rows="3" placeholder="..."
+                        class="w-full p-4 bg-gray-50 dark:bg-gray-800 rounded-2xl outline-none font-medium resize-none"></textarea>
+                </div>
+                <!-- Ảnh đính kèm -->
+                <div>
+                    <label class="block text-xs font-black uppercase text-gray-400 tracking-widest pl-1 mb-2">Chỉnh sửa ảnh</label>
+                    <div class="flex gap-3 overflow-x-auto pb-2 scrollbar-hide" id="editPlaceImagePreviewContainer">
+                        <label
+                            class="w-24 h-24 flex-shrink-0 flex flex-col items-center justify-center bg-gray-50 dark:bg-darkCard border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-2xl cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+                            <i class="fa-solid fa-camera text-2xl text-gray-400 mb-1"></i>
+                            <span class="text-[10px] font-bold text-gray-500">Tải ảnh lên</span>
+                            <input type="file" id="editPlaceImageInput" accept="image/*" multiple class="hidden">
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+
+    <!-- Modal: Thêm địa điểm -->
+    <div id="placeModal"
+        class="hidden fixed inset-0 z-[100] bg-white dark:bg-darkBg flex flex-col translate-y-full transition-transform duration-300">
+        <div class="flex items-center justify-between p-4 border-b border-gray-100 dark:border-white/5">
+            <button id="closePlaceModal" class="p-2 text-gray-400"><i class="fa-solid fa-chevron-left"></i></button>
+            <h3 class="font-black text-lg">Đóng góp địa điểm</h3>
+            <button id="submitPlaceBtn"
+                class="bg-[#ff5500] text-white px-5 py-1.5 rounded-full text-sm font-bold">Gửi</button>
+        </div>
+        <div class="flex-1 overflow-y-auto p-6 space-y-6">
+            <div class="space-y-4">
+                <div class="space-y-2">
+                    <label class="text-xs font-black uppercase text-gray-400 tracking-widest pl-1">Tên địa điểm</label>
+                    <input type="text" id="placeName" placeholder="Ví dụ: Phở khô 123"
+                        class="w-full p-4 bg-gray-50 dark:bg-gray-800 rounded-2xl outline-none font-bold">
+                </div>
+                <div class="grid grid-cols-1 gap-4">
+                    <div class="space-y-2">
+                        <label class="text-xs font-black uppercase text-gray-400 tracking-widest pl-1">Danh mục</label>
+                        <select id="placeCategory"
+                            class="w-full p-4 bg-gray-50 dark:bg-gray-800 rounded-2xl outline-none font-bold appearance-none">
+                            <option value="1">Ăn uống</option>
+                            <option value="4">Du lịch</option>
+                            <option value="2">Giải trí</option>
+                            <option value="3">Khách sạn</option>
+                        </select>
+                    </div>
+                    <div class="space-y-2 hidden">
+                        <label class="text-xs font-black uppercase text-gray-400 tracking-widest pl-1">Toạ độ</label>
+                        <button id="openCoordPicker" type="button"
+                            class="w-full p-4 bg-gray-50 dark:bg-gray-800 rounded-2xl flex items-center justify-between text-gray-400 active:bg-gray-100">
+                            <span class="text-xs font-bold" id="coordDisplay">Bấm để chọn</span>
+                            <i class="fa-solid fa-location-crosshairs text-[#ff5500]"></i>
+                        </button>
+                        <input type="hidden" id="placeLatitude" name="latitude">
+                        <input type="hidden" id="placeLongitude" name="longitude">
+                    </div>
+                </div>
+                <div class="space-y-2 relative">
+                    <label class="text-xs font-black uppercase text-gray-400 tracking-widest pl-1">Địa chỉ chính
+                        xác</label>
+                    <input type="text" id="placeAddress" autocomplete="off" placeholder="Số nhà, tên đường, phường..."
+                        class="w-full p-4 bg-gray-50 dark:bg-gray-800 rounded-2xl outline-none font-bold">
+                    <!-- Dropdown gợi ý địa chỉ -->
+                    <ul id="placeAddressSuggestions"
+                        class="absolute z-10 w-full bg-white dark:bg-darkCard mt-1 rounded-xl shadow-lg max-h-48 overflow-y-auto hidden border border-gray-100 dark:border-gray-700 divide-y divide-gray-100 dark:divide-gray-800 text-sm font-medium">
+                    </ul>
+                </div>
+                <div class="space-y-2">
+                    <label class="text-xs font-black uppercase text-gray-400 tracking-widest pl-1">Mô tả ngắn</label>
+                    <textarea id="placeDesc" rows="3" placeholder="Chia sẻ thêm về không gian, món ăn..."
+                        class="w-full p-4 bg-gray-50 dark:bg-gray-800 rounded-2xl outline-none font-medium resize-none"></textarea>
+                </div>
+                <!-- Ảnh đính kèm -->
+                <div>
+                    <label class="block text-xs font-black uppercase text-gray-400 tracking-widest pl-1 mb-2">Thêm ảnh
+                        (không bắt buộc)</label>
+                    <div class="flex gap-3 overflow-x-auto pb-2 scrollbar-hide" id="placeImagePreviewContainer">
+                        <label
+                            class="w-24 h-24 flex-shrink-0 flex flex-col items-center justify-center bg-gray-50 dark:bg-darkCard border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-2xl cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+                            <i class="fa-solid fa-camera text-2xl text-gray-400 mb-1"></i>
+                            <span class="text-[10px] font-bold text-gray-500">Tải ảnh lên</span>
+                            <input type="file" id="placeImageInput" accept="image/*" multiple class="hidden">
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bottom Navigation Bar & Center Action Button -->
+
+    <!-- Floating Center Button -->
+    <div class="fixed left-1/2 bottom-[50px] -translate-x-1/2 flex justify-center z-[1000]">
+        <button id="mainActionBtn"
+            class="bg-[#ff5500] text-white w-14 h-14 rounded-full shadow-[0_8px_20px_rgba(255,85,0,0.4)] border-4 border-white dark:border-darkBg transition-transform active:scale-90 flex items-center justify-center cursor-pointer relative overflow-hidden">
+            <i class="fa-solid fa-plus text-2xl" id="mainPlusIcon"></i>
+        </button>
+    </div>
+
+    <!-- Floating AI Bubble -->
+    <button id="btnOpenAiChat"
+        class="fixed right-4 bottom-24 z-[990] bg-[#ff5500] text-white w-14 h-14 rounded-full shadow-[0_4px_15px_rgba(255,85,0,0.4)] border-4 border-white dark:border-darkBg flex items-center justify-center transition-transform active:scale-90 hover:bg-orange-600">
+        <i class="fa-solid fa-sparkles text-xl"></i>
+    </button>
+
+    <!-- Navigation Bar -->
+    <nav
+        class="fixed bottom-0 inset-x-0 mx-auto max-w-md bg-white/90 dark:bg-[#1c1c1e]/90 glass-nav border-t border-gray-100 dark:border-white/5 shadow-[0_-5px_20px_rgba(0,0,0,0.03)] px-3 z-[999] pb-safe">
+        <div class="flex justify-between items-center h-[72px]">
+            <div class="flex w-2/5 justify-around">
+                <button class="nav-btn active flex flex-col items-center justify-center transition-all duration-300"
+                    data-target="home">
+                    <i class="fa-solid fa-house text-xl mb-1.5 transition-transform"></i>
+                    <span class="text-[9px] font-extrabold uppercase tracking-tight">Trang chủ</span>
+                </button>
+                <button
+                    class="nav-btn flex flex-col items-center justify-center text-gray-400 transition-all duration-300"
+                    data-target="explore">
+                    <i class="fa-regular fa-compass text-xl mb-1.5 transition-transform"></i>
+                    <span class="text-[9px] font-bold uppercase tracking-tight">Khám phá</span>
+                </button>
+            </div>
+            <div class="w-1/5"></div> <!-- khoảng trống cho Center Button -->
+            <div class="flex w-2/5 justify-around">
+                <button
+                    class="nav-btn flex flex-col items-center justify-center text-gray-400 transition-all duration-300 relative group"
+                    data-target="rewards">
+                    <i class="fa-solid fa-gift text-xl mb-1.5 transition-transform group-active:scale-90"></i>
+                    <span class="text-[9px] font-bold uppercase tracking-tight">Đổi thưởng</span>
+                </button>
+                <button
+                    class="nav-btn flex flex-col items-center justify-center text-gray-400 transition-all duration-300"
+                    data-target="profile">
+                    <i class="fa-regular fa-user text-xl mb-1.5 transition-transform"></i>
+                    <span class="text-[9px] font-bold uppercase tracking-tight">Tài khoản</span>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Modal: Chi tiết địa điểm (Place Detail) -->
+    <div id="placeDetailModal"
+        class="hidden fixed inset-0 z-[9999] bg-white dark:bg-darkBg flex flex-col translate-y-full transition-transform duration-300">
+
+        <!-- Action Buttons Overlay (Absolute, fixed to top) -->
+        <div class="absolute top-4 left-4 right-4 flex justify-between items-start z-[95] pointer-events-none">
+            <button id="closePlaceDetail"
+                class="w-10 h-10 bg-black/40 backdrop-blur text-white rounded-full flex items-center justify-center pointer-events-auto">
+                <i class="fa-solid fa-chevron-down"></i>
+            </button>
+            <div class="flex gap-2 pointer-events-auto">
+                <button id="btnAdminEditPlace"
+                    class="hidden w-10 h-10 bg-black/40 backdrop-blur text-blue-400 hover:bg-black/60 rounded-full items-center justify-center transition-colors">
+                    <i class="fa-solid fa-pen-to-square"></i>
+                </button>
+                <button id="btnAdminDeletePlace"
+                    class="hidden w-10 h-10 bg-black/40 backdrop-blur text-red-500 hover:bg-black/60 rounded-full items-center justify-center transition-colors">
+                    <i class="fa-solid fa-trash"></i>
+                </button>
+                <button id="btnReportPlace"
+                    class="w-10 h-10 bg-black/40 backdrop-blur text-white hover:text-red-500 rounded-full flex items-center justify-center transition-colors">
+                    <i class="fa-solid fa-flag"></i>
+                </button>
+                <button id="btnSharePlace"
+                    class="w-10 h-10 bg-black/40 backdrop-blur text-white hover:text-blue-400 rounded-full flex items-center justify-center transition-colors">
+                    <i class="fa-solid fa-share-nodes"></i>
+                </button>
+                <button id="btnToggleSavePlace"
+                    class="w-10 h-10 bg-black/40 backdrop-blur text-white hover:text-red-500 rounded-full flex items-center justify-center transition-colors">
+                    <i class="fa-regular fa-bookmark"></i>
+                </button>
+            </div>
+        </div>
+
+        <div class="flex-1 overflow-y-auto pb-24">
+            <div class="relative w-full aspect-[4/3] bg-gray-200 dark:bg-gray-800">
+                <div id="detailPlaceImageContainer"
+                    class="w-full h-full flex overflow-x-auto snap-x snap-mandatory scrollbar-hide">
+                    <!-- Images rendered via JS -->
+                </div>
+                <div
+                    class="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/80 to-transparent pointer-events-none">
+                </div>
+                <div class="absolute bottom-4 left-4 right-4 text-white pointer-events-none">
+                    <span id="detailPlaceCategory"
+                        class="inline-block bg-[#ff5500] text-[10px] font-bold px-2.5 py-1 rounded-md mb-2">DANH
+                        MỤC</span>
+                    <h2 id="detailPlaceName" class="text-2xl font-black leading-tight drop-shadow-md">Tên Địa Điểm</h2>
+                    <p id="detailPlaceAddress" class="text-sm font-medium opacity-90 mt-1 flex items-center gap-1.5"><i
+                            class="fa-solid fa-location-dot"></i> <span>Địa chỉ</span></p>
+                </div>
+            </div>
+            <div class="p-4 space-y-6">
+                <div class="flex gap-4 p-4 bg-gray-50 dark:bg-[#1c1c1e] rounded-2xl">
+                    <div class="flex-1 text-center">
+                        <p class="text-xl font-black text-[#ff5500]" id="detailStatReviews">0</p>
+                        <p class="text-[10px] font-bold text-gray-400 uppercase mt-0.5">Đánh giá</p>
+                    </div>
+                    <div class="w-px bg-gray-200 dark:bg-gray-800"></div>
+                    <div class="flex-1 text-center">
+                        <p class="text-xl font-black text-[#ff5500]" id="detailStatRating">0.0</p>
+                        <p class="text-[10px] font-bold text-gray-400 uppercase mt-0.5">Điểm (5★)</p>
+                    </div>
+                </div>
+                <div>
+                    <h3 class="font-bold mb-2">Giới thiệu</h3>
+                    <p id="detailPlaceDesc" class="text-sm text-gray-600 dark:text-gray-300 leading-relaxed"></p>
+                </div>
+                <div class="mt-4">
+                    <h3 class="font-bold mb-2">Vị trí</h3>
+                    <div id="detailPlaceMap" class="w-full h-48 rounded-2xl bg-gray-200 overflow-hidden"></div>
+                </div>
+                <div class="mt-4 pt-4 border-t border-gray-100 dark:border-gray-800">
+                    <h3 class="font-bold mb-4">Đánh giá cộng đồng</h3>
+                    <div id="detailPlaceReviewsList" class="space-y-4">
+                        <p class="text-sm text-gray-500 italic text-center py-4">Đang tải đánh giá...</p>
+                    </div>
+                </div>
+            </div> <!-- Closes .p-4.space-y-6 -->
+        </div> <!-- Closes .flex-1.overflow-y-auto -->
+
+        <!-- Fixed Bottom Button -->
+        <div class="p-4 border-t border-gray-100 dark:border-[#2c2c2e] bg-white dark:bg-darkCard z-10">
+            <button id="btnWriteReviewFromDetail"
+                class="w-full bg-[#ff5500] text-white py-3.5 rounded-2xl font-bold flex items-center justify-center gap-2 relative overflow-hidden group hover:opacity-90 active:scale-[0.98] transition-all">
+                <i class="fa-solid fa-pen"></i> Viết đánh giá cho nơi này
+            </button>
+        </div>
+    </div>
+
+    <!-- Modal Viết Đánh Giá -->
+    <div id="reviewModal"
+        class="hidden fixed inset-0 z-[10000] bg-white dark:bg-darkBg flex flex-col translate-y-full transition-transform duration-300">
+        <div
+            class="h-16 px-4 flex items-center justify-between border-b border-gray-100 dark:border-[#2c2c2e] sticky top-0 bg-white/80 dark:bg-darkBg/80 backdrop-blur-md z-10">
+            <button id="closeReviewModal" class="p-2 -ml-2 text-gray-500 hover:text-gray-800 transition-colors">
+                <i class="fa-solid fa-chevron-down text-xl"></i>
+            </button>
+            <h2 class="font-extrabold text-lg text-gray-900 dark:text-white">Viết Đánh Giá</h2>
+            <button id="submitReviewBtn"
+                class="text-[#ff5500] font-bold px-2 py-1 bg-orange-50 dark:bg-orange-900/30 rounded-lg">Đăng</button>
+        </div>
+
+        <form id="reviewForm" class="flex-1 overflow-y-auto p-5 space-y-6 pb-safe">
+            <!-- Địa điểm -->
+            <div>
+                <label class="block text-sm font-black text-gray-900 dark:text-white mb-2">Địa điểm</label>
+                <select id="reviewPlace"
+                    class="w-full p-4 bg-gray-50 dark:bg-darkCard text-gray-900 dark:text-white rounded-2xl appearance-none font-medium">
+                    <option value="">-- Chọn địa điểm --</option>
+                </select>
+            </div>
+
+            <!-- Cảm nhận -->
+            <div>
+                <label class="block text-sm font-black text-gray-900 dark:text-white mb-2">Trải nghiệm của bạn thế
+                    nào?</label>
+                <div class="flex justify-center gap-2 mb-4" id="starRatingSystem">
+                    <i class="fa-regular fa-star text-4xl text-gray-300 transition-colors cursor-pointer"
+                        data-rating="1"></i>
+                    <i class="fa-regular fa-star text-4xl text-gray-300 transition-colors cursor-pointer"
+                        data-rating="2"></i>
+                    <i class="fa-regular fa-star text-4xl text-gray-300 transition-colors cursor-pointer"
+                        data-rating="3"></i>
+                    <i class="fa-regular fa-star text-4xl text-gray-300 transition-colors cursor-pointer"
+                        data-rating="4"></i>
+                    <i class="fa-regular fa-star text-4xl text-gray-300 transition-colors cursor-pointer"
+                        data-rating="5"></i>
+                </div>
+                <input type="hidden" id="reviewRatingInput" value="0">
+                <textarea id="reviewContent" rows="4"
+                    placeholder="Chia sẻ một vài dòng về không gian, phục vụ, đồ ăn... (ít nhất 10 ký tự)"
+                    class="w-full p-4 bg-gray-50 dark:bg-darkCard text-gray-900 dark:text-white border-transparent focus:ring-2 focus:ring-[#ff5500] focus:bg-white dark:focus:bg-gray-800 transition-all rounded-2xl resize-none font-medium"></textarea>
+            </div>
+
+            <!-- Ảnh đính kèm -->
+            <div>
+                <label class="block text-sm font-black text-gray-900 dark:text-white mb-2">Thêm ảnh (không bắt
+                    buộc)</label>
+                <div class="flex gap-3 overflow-x-auto pb-2 scrollbar-hide" id="imagePreviewContainer">
+                    <label
+                        class="shrink-0 w-24 h-24 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-xl flex flex-col items-center justify-center text-gray-500 cursor-pointer hover:border-[#ff5500] hover:text-[#ff5500] transition-colors">
+                        <i class="fa-solid fa-camera mb-1 text-xl"></i>
+                        <span class="text-[10px] font-bold uppercase tracking-widest">Thư viện</span>
+                        <input type="file" id="reviewImagesUpload" accept="image/*" multiple class="hidden">
+                    </label>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- Toast & Review Modal (reused from previous step) -->
+    <div id="toast"
+        class="fixed top-6 left-1/2 -translate-x-1/2 z-[99999] opacity-0 pointer-events-none transition-all duration-300">
+        <div class="bg-gray-900 text-white px-6 py-3 rounded-full flex gap-2 items-center text-sm shadow-2xl">
+            <i class="fa-solid fa-check-circle text-green-400" id="toastIcon"></i>
+            <span id="toastMsg">Thành công!</span>
+        </div>
+    </div>
+
+    <!-- Custom Confirm Modal -->
+    <div id="customConfirmModal"
+        class="fixed inset-0 z-[99999] hidden items-center justify-center bg-black/60 backdrop-blur-sm transition-opacity">
+        <div
+            class="bg-white dark:bg-darkBg rounded-3xl w-[90%] max-w-xs overflow-hidden scale-95 opacity-0 transition-all duration-300 transform p-5 text-center shadow-2xl border border-gray-100 dark:border-gray-800">
+            <div
+                class="w-16 h-16 bg-orange-100 text-[#ff5500] rounded-full flex items-center justify-center mx-auto mb-4">
+                <i class="fa-solid fa-circle-question text-3xl"></i>
+            </div>
+            <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-2">Xác nhận</h3>
+            <p id="customConfirmMessage" class="text-sm text-gray-500 dark:text-gray-400 mb-6">Bạn có chắc chắn thực
+                hiện hành động này không?</p>
+            <div class="flex gap-3">
+                <button id="customConfirmCancelBtn"
+                    class="flex-1 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold py-3 rounded-xl transition-colors">
+                    Hủy
+                </button>
+                <button id="customConfirmOkBtn"
+                    class="flex-1 bg-[#ff5500] hover:bg-[#ff7333] text-white font-bold py-3 rounded-xl transition-colors shadow-md shadow-orange-500/20">
+                    Đồng ý
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Cập Nhật Thông Tin -->
+    <div id="editProfileModal" class="fixed inset-0 z-[100] hidden bg-black/60 backdrop-blur-sm transition-opacity">
+        <div
+            class="fixed inset-x-0 bottom-0 z-[101] bg-white dark:bg-darkBg rounded-t-3xl shadow-2xl translate-y-full transition-transform duration-300 ease-out max-h-[90vh] flex flex-col">
+            <div class="p-5 flex justify-between items-center border-b border-gray-100 dark:border-gray-800">
+                <h3 class="text-xl font-bold dark:text-white">Cập nhật Hồ Sơ</h3>
+                <button id="closeEditProfileModal"
+                    class="w-8 h-8 flex items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-full text-gray-500">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div class="p-6 overflow-y-auto space-y-6">
+                <form id="editProfileForm" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Họ và tên</label>
+                        <input type="text" id="editFullname"
+                            class="w-full p-4 bg-gray-50 dark:bg-darkCard dark:text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20"
+                            required>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Số điện
+                            thoại</label>
+                        <input type="text" id="editPhone"
+                            class="w-full p-4 bg-gray-50 dark:bg-darkCard dark:text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20">
+                    </div>
+                    <button type="submit" id="btnSubmitEditProfile"
+                        class="w-full bg-primary text-white py-4 rounded-xl font-bold text-lg shadow-md pb-4">Lưu thay
+                        đổi</button>
+                </form>
+
+                <hr class="border-gray-100 dark:border-gray-800">
+
+                <form id="changePasswordForm" class="space-y-4">
+                    <h4 class="font-bold text-gray-800 dark:text-white">Đổi mật khẩu</h4>
+                    <div>
+                        <input type="password" id="oldPassword" placeholder="Mật khẩu cũ"
+                            class="w-full p-4 bg-gray-50 dark:bg-darkCard dark:text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20"
+                            required>
+                    </div>
+                    <div>
+                        <input type="password" id="newPassword" placeholder="Mật khẩu mới"
+                            class="w-full p-4 bg-gray-50 dark:bg-darkCard dark:text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20"
+                            required>
+                    </div>
+                    <button type="submit"
+                        class="w-full bg-gray-800 dark:bg-gray-700 text-white py-4 rounded-xl font-bold pb-2">Cập nhật
+                        Mật khẩu</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Xen Lịch sử Điểm (Points History) -->
+    <div id="pointsHistoryModal" class="fixed inset-0 z-[100] hidden bg-black/60 backdrop-blur-sm transition-opacity">
+        <div
+            class="fixed inset-x-0 bottom-0 z-[101] bg-white dark:bg-darkBg rounded-t-3xl shadow-2xl translate-y-full transition-transform duration-300 ease-out max-h-[85vh] flex flex-col">
+            <div class="p-5 flex justify-between items-center border-b border-gray-100 dark:border-gray-800">
+                <div>
+                    <h3 class="text-xl font-bold dark:text-white">Lịch sử điểm</h3>
+                    <p class="text-sm text-gray-500 mt-1">Bạn đang có: <span id="historyModalPoints"
+                            class="font-bold text-[#ff5500]">0</span> điểm</p>
+                </div>
+                <button id="closePointsHistoryModal"
+                    class="w-8 h-8 flex items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-full text-gray-500">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div class="p-4 overflow-y-auto flex-1" id="pointsHistoryList">
+                <div class="text-center py-10 text-gray-400"><i class="fa-solid fa-spinner fa-spin"></i> Đang tải...
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal settings & Edit Profile -->
+    <div id="settingsModal"
+        class="hidden fixed inset-0 z-[10001] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <div
+            class="bg-white dark:bg-darkBg rounded-3xl w-[90%] max-w-sm overflow-hidden scale-95 opacity-0 transition-all duration-300">
+            <div class="p-5 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center">
+                <h3 class="text-[17px] font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                    <i class="fa-solid fa-gear text-[#ff5500]"></i> Cài đặt tài khoản
+                </h3>
+                <button id="closeSettingsModal" class="text-gray-400 hover:text-gray-600"><i
+                        class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <div class="p-5 space-y-5">
+                <form id="settingsProfileForm" class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Tên hiển thị
+                            mới</label>
+                        <input type="text" id="editProfileName"
+                            class="w-full p-4 bg-gray-50 dark:bg-darkCard dark:text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-[#ff5500]"
+                            placeholder="Nhập họ tên...">
+                    </div>
+                    <button type="submit"
+                        class="w-full bg-[#ff5500] hover:bg-[#e64d00] text-white py-4 rounded-xl font-bold pb-2 transition-colors">Lưu
+                        thay đổi</button>
+                </form>
+                <hr class="border-gray-100 dark:border-gray-800">
+                <button id="btnChangePassword"
+                    class="w-full bg-gray-50 dark:bg-darkCard hover:bg-gray-100 dark:hover:bg-[#2c2c2e] text-gray-700 dark:text-white py-4 rounded-xl font-bold transition-colors">
+                    <i class="fa-solid fa-key mr-2 opacity-50"></i> Đổi mật khẩu
+                </button>
+                <button id="btnLogout"
+                    class="w-full bg-red-50 dark:bg-red-900/20 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/40 py-4 rounded-xl font-bold transition-colors">
+                    <i class="fa-solid fa-arrow-right-from-bracket mr-2"></i> Đăng xuất
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Báo cáo Vi Phạm (Report) -->
+    <div id="reportModal"
+        class="hidden fixed inset-0 z-[10001] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <div
+            class="bg-white dark:bg-darkBg rounded-3xl w-[90%] max-w-sm overflow-hidden scale-95 opacity-0 transition-all duration-300">
+            <div class="p-5 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center">
+                <h3 class="text-[17px] font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                    <i class="fa-solid fa-flag text-red-500"></i> Báo cáo vi phạm
+                </h3>
+                <button id="closeReportModal" class="text-gray-400 hover:text-gray-600"><i
+                        class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <div class="p-5">
+                <input type="hidden" id="reportEntityType">
+                <input type="hidden" id="reportEntityId">
+                <p class="text-sm text-gray-500 mb-3" id="reportEntityDesc">Bạn đang báo cáo nội dung này.</p>
+                <textarea id="reportReason"
+                    class="w-full bg-gray-50 dark:bg-gray-800 border-transparent focus:border-red-500 focus:ring-0 rounded-2xl p-4 text-sm resize-none dark:text-white"
+                    rows="3" placeholder="Vui lòng cung cấp lý do chi tiết..." required></textarea>
+                <button id="btnSubmitReport"
+                    class="w-full mt-4 bg-red-500 text-white font-bold py-3.5 rounded-2xl active:scale-95 transition-transform">Gửi
+                    Báo Cáo</button>
+            </div>
+        </div>
+    </div>
+    <div id="adminDashboardModal"
+        class="fixed inset-0 z-[9999] hidden flex-col bg-white dark:bg-[#121212] transition-transform duration-300 translate-y-full">
+        <!-- Header -->
+        <div
+            class="sticky top-0 z-10 flex items-center justify-between px-4 py-4 bg-white/90 dark:bg-[#121212]/90 backdrop-blur-xl border-b border-gray-100 dark:border-white/5">
+            <button id="closeAdminDashboard"
+                class="w-10 h-10 rounded-full flex items-center justify-center text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors active:scale-95">
+                <i class="fa-solid fa-chevron-left text-xl"></i>
+            </button>
+            <h2 class="text-lg font-black tracking-tight text-gray-900 dark:text-white">Công cụ Quản trị</h2>
+            <div class="w-10"></div>
+        </div>
+
+        <div class="flex-1 overflow-y-auto">
+            <!-- Tabs Header -->
+            <div
+                class="flex px-4 pt-4 gap-2 overflow-x-auto pb-4 scrollbar-hide border-b border-gray-100 dark:border-gray-800">
+                <button
+                    class="admin-tab-btn active-tab px-4 py-2 rounded-xl text-sm font-bold whitespace-nowrap bg-[#ff5500] text-white"
+                    data-tab="admin-places">Duyệt địa điểm</button>
+                <button
+                    class="admin-tab-btn px-4 py-2 rounded-xl text-sm font-bold whitespace-nowrap bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300"
+                    data-tab="admin-banners">Quản lý Banners</button>
+                <button
+                    class="admin-tab-btn px-4 py-2 rounded-xl text-sm font-bold whitespace-nowrap bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300"
+                    data-tab="admin-reports">Báo cáo</button>
+                <button
+                    class="admin-tab-btn px-4 py-2 rounded-xl text-sm font-bold whitespace-nowrap bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300"
+                    data-tab="admin-users">Người dùng</button>
+            </div>
+
+            <!-- Tab Panels -->
+            <div class="p-4">
+                <!-- Tab: Địa điểm -->
+                <div id="admin-places" class="admin-tab-panel">
+                    <div id="adminPlacesList" class="space-y-3">
+                        <!-- Render pending places here -->
+                        <div class="text-center py-10 text-gray-500 text-sm">Đang tải...</div>
+                    </div>
+                </div>
+
+                <!-- Tab: Banners -->
+                <div id="admin-banners" class="admin-tab-panel hidden space-y-4">
+                    <div class="bg-gray-50 dark:bg-gray-800 p-4 rounded-2xl flex flex-col gap-3">
+                        <h4 class="font-bold text-sm">Thêm Banner Mới</h4>
+                        <input type="text" id="adminBannerImgUrl" placeholder="Link ảnh (image url)"
+                            class="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-orange-500">
+                        <input type="text" id="adminBannerLink" placeholder="Link đích (khi click - Optional)"
+                            class="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-orange-500">
+                        <button id="adminBtnAddBanner"
+                            class="bg-blue-500 text-white font-bold py-2 rounded-xl text-sm active:scale-95 transition-transform"><i
+                                class="fa-solid fa-plus"></i> Tạo Banner</button>
+                    </div>
+                    <div id="adminBannersList" class="space-y-3">
+                        <!-- Render banners here -->
+                        <div class="text-center py-10 text-gray-500 text-sm">Đang tải...</div>
+                    </div>
+                </div>
+
+                <!-- Tab: Report -->
+                <div id="admin-reports" class="admin-tab-panel hidden">
+                    <div id="adminReportsList" class="space-y-3">
+                        <!-- Render reports here -->
+                        <div class="text-center py-10 text-gray-500 text-sm">Đang tải...</div>
+                    </div>
+                </div>
+
+                <!-- Tab: Người dùng -->
+                <div id="admin-users" class="admin-tab-panel hidden">
+                    <div id="adminUsersList" class="space-y-3">
+                        <!-- Render users here -->
+                        <div class="text-center py-10 text-gray-500 text-sm">Đang tải...</div>
+                    </div>
+
+                    <div
+                        class="bg-gray-50 dark:bg-gray-800 p-4 rounded-2xl flex flex-col gap-3 mt-4 border-t border-gray-200 dark:border-gray-700 pt-4">
+                        <h4 class="font-bold text-sm text-purple-600"><i class="fa-solid fa-bullhorn mr-2"></i>Đẩy thông
+                            báo hệ thống</h4>
+                        <textarea id="adminNotifContent" rows="3"
+                            placeholder="Nhập nội dung thông báo muốn gửi đến tất cả người dùng hệ thống..."
+                            class="w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-purple-500 resize-none"></textarea>
+                        <button id="btnAdminPushNotif"
+                            class="bg-purple-500 text-white font-bold py-2 rounded-xl text-sm active:scale-95 transition-transform"><i
+                                class="fa-solid fa-paper-plane mr-2"></i> Gửi thông báo</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    </div>
+
+    <!-- Modal Danh Sách Địa Điểm Đã Lưu -->
+    <div id="savedPlacesModal" class="fixed inset-0 z-[100] hidden bg-black/60 backdrop-blur-sm transition-opacity">
+        <div
+            class="fixed inset-x-0 bottom-0 z-[101] bg-gray-50 dark:bg-darkBg translate-y-full transition-transform duration-300 ease-out h-[90vh] flex flex-col rounded-t-3xl">
+            <div
+                class="h-16 px-4 bg-white dark:bg-darkCard flex items-center shadow-sm border-b border-gray-100 dark:border-gray-800 sticky top-0 z-10 rounded-t-3xl">
+                <button id="closeSavedPlacesModal"
+                    class="w-10 h-10 flex items-center justify-center text-gray-800 dark:text-white">
+                    <i class="fa-solid fa-chevron-down text-lg"></i>
+                </button>
+                <h1 class="text-lg font-bold ml-2 dark:text-white">Địa điểm đã lưu</h1>
+            </div>
+            <div class="flex-1 overflow-y-auto p-4 space-y-4" id="savedPlacesList">
+                <div class="flex flex-col items-center justify-center h-full text-gray-400">
+                    <i class="fa-regular fa-bookmark text-4xl mb-3"></i>
+                    <p>Chưa có địa điểm nào</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Danh Sách Địa Điểm Theo Danh Mục -->
+    <div id="categoryPlacesModal" class="fixed inset-0 z-[100] hidden bg-black/60 backdrop-blur-sm transition-opacity">
+        <div
+            class="fixed inset-x-0 bottom-0 z-[101] bg-gray-50 dark:bg-darkBg translate-y-full transition-transform duration-300 ease-out h-[90vh] flex flex-col rounded-t-3xl">
+            <div
+                class="h-16 px-4 bg-white dark:bg-darkCard flex items-center shadow-sm border-b border-gray-100 dark:border-gray-800 sticky top-0 z-10 rounded-t-3xl">
+                <button id="closeCategoryPlacesModal"
+                    class="w-10 h-10 flex items-center justify-center text-gray-800 dark:text-white">
+                    <i class="fa-solid fa-chevron-down text-lg"></i>
+                </button>
+                <h1 id="categoryPlacesTitle" class="text-lg font-bold ml-2 dark:text-white">Danh Mục</h1>
+            </div>
+            <div class="flex-1 overflow-y-auto p-4 space-y-4" id="categoryPlacesList">
+                <div class="flex flex-col items-center justify-center h-full text-gray-400">
+                    <i class="fa-solid fa-spinner fa-spin text-4xl mb-3"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+
+    <!-- Modal Danh Sách Đánh Giá Đã Lưu -->
+    <div id="savedReviewsModal" class="fixed inset-0 z-[100] hidden bg-black/60 backdrop-blur-sm transition-opacity">
+        <div
+            class="fixed inset-x-0 bottom-0 z-[101] bg-gray-50 dark:bg-darkBg translate-y-full transition-transform duration-300 ease-out h-[90vh] flex flex-col rounded-t-3xl">
+            <div
+                class="h-16 px-4 bg-white dark:bg-darkCard flex items-center shadow-sm border-b border-gray-100 dark:border-gray-800 sticky top-0 z-10 rounded-t-3xl">
+                <button id="closeSavedReviewsModal"
+                    class="w-10 h-10 flex items-center justify-center text-gray-800 dark:text-white">
+                    <i class="fa-solid fa-chevron-down text-lg"></i>
+                </button>
+                <h1 class="text-lg font-bold ml-2 dark:text-white">Đánh giá đã lưu</h1>
+            </div>
+            <div class="flex-1 overflow-y-auto p-4 space-y-4" id="savedReviewsList">
+                <div class="flex flex-col items-center justify-center h-full text-gray-400">
+                    <i class="fa-solid fa-bookmark text-4xl mb-3 text-gray-300"></i>
+                    <p>Chưa có đánh giá nào</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Danh Sách Đánh Giá Của Tôi -->
+    <div id="myReviewsModal" class="fixed inset-0 z-[100] hidden bg-black/60 backdrop-blur-sm transition-opacity">
+        <div
+            class="fixed inset-x-0 bottom-0 z-[101] bg-gray-50 dark:bg-darkBg translate-y-full transition-transform duration-300 ease-out h-[90vh] flex flex-col rounded-t-3xl">
+            <div
+                class="h-16 px-4 bg-white dark:bg-darkCard flex items-center shadow-sm border-b border-gray-100 dark:border-gray-800 sticky top-0 z-10 rounded-t-3xl">
+                <button id="closeMyReviewsModal"
+                    class="w-10 h-10 flex items-center justify-center text-gray-800 dark:text-white">
+                    <i class="fa-solid fa-chevron-down text-lg"></i>
+                </button>
+                <h1 class="text-lg font-bold ml-2 dark:text-white">Bài đánh giá của tôi</h1>
+            </div>
+            <div class="flex-1 overflow-y-auto p-4 space-y-4" id="myReviewsList">
+                <div class="flex flex-col items-center justify-center h-full text-gray-400">
+                    <i class="fa-regular fa-star text-4xl mb-3 text-gray-300"></i>
+                    <p>Chưa có bài đánh giá nào</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Thông Báo -->
+    <div id="notificationsModal" class="fixed inset-0 z-[9999] hidden bg-black/60 backdrop-blur-sm transition-opacity">
+        <div
+            class="fixed inset-x-0 bottom-0 z-[101] bg-white dark:bg-darkBg rounded-t-3xl shadow-2xl translate-y-full transition-transform duration-300 ease-out max-h-[90vh] flex flex-col">
+            <div class="p-5 flex justify-between items-center border-b border-gray-100 dark:border-gray-800">
+                <h3 class="text-xl font-bold dark:text-white">Thông báo</h3>
+                <button id="closeNotificationsModal"
+                    class="w-8 h-8 flex items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-full text-gray-500">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div class="flex-1 overflow-y-auto p-4 space-y-3" id="notificationsList">
+                <div class="flex flex-col items-center justify-center h-48 text-gray-400">
+                    <i class="fa-regular fa-bell-slash text-4xl mb-3"></i>
+                    <p>Chưa có thông báo nào</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Bình luận (Comments) -->
+    <div id="commentsModal" class="fixed inset-0 z-[10000] hidden bg-black/60 backdrop-blur-sm transition-opacity">
+        <div
+            class="fixed inset-x-0 bottom-0 z-[101] bg-white dark:bg-darkBg rounded-t-3xl shadow-2xl translate-y-full transition-transform duration-300 ease-out h-[80vh] flex flex-col">
+            <div class="p-4 flex justify-between items-center border-b border-gray-100 dark:border-gray-800">
+                <h3 class="text-lg font-bold dark:text-white" id="commentsModalTitle">Bình luận</h3>
+                <button id="closeCommentsModal"
+                    class="w-8 h-8 flex items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-full text-gray-500">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div class="flex-1 overflow-y-auto p-4 space-y-4" id="commentsList">
+                <div class="flex flex-col items-center justify-center h-full text-gray-400">
+                    <i class="fa-regular fa-comments text-4xl mb-3"></i>
+                    <p>Chưa có bình luận nào. Hãy là người đầu tiên!</p>
+                </div>
+            </div>
+
+            <div class="p-3 border-t border-gray-100 dark:border-gray-800 bg-white dark:bg-darkCard">
+                <form id="commentForm" class="flex items-center gap-2">
+                    <div class="w-8 h-8 rounded-full bg-gray-200 overflow-hidden flex-shrink-0" id="commentUserAvatar">
+                        <img src="https://images.unsplash.com/photo-1544005313-94ff6a00c24c?auto=format&fit=crop&q=80&w=150"
+                            class="w-full h-full object-cover">
+                    </div>
+                    <input type="text" id="commentInput" placeholder="Thêm bình luận..."
+                        class="flex-1 bg-gray-100 dark:bg-gray-800 dark:text-white rounded-full px-4 py-2text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                        required>
+                    <input type="hidden" id="commentReviewId">
+                    <button type="submit"
+                        class="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center flex-shrink-0">
+                        <i class="fa-solid fa-paper-plane text-xs -ml-0.5"></i>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Coord Picker Modal -->
+    <div id="coordPickerModal" class="hidden fixed inset-0 z-[200] bg-black/70 flex-col items-end justify-end">
+        <div class="bg-white dark:bg-darkBg w-full rounded-t-3xl shadow-2xl flex flex-col" style="height:70vh">
+            <div class="flex items-center justify-between p-4 border-b border-gray-100 dark:border-gray-800">
+                <button id="closeCoordPicker"
+                    class="w-9 h-9 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-gray-500">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+                <h3 class="font-bold text-base dark:text-white">Chọn vị trí trên bản đồ</h3>
+                <button id="confirmCoordBtn"
+                    class="hidden bg-[#ff5500] text-white px-4 py-1.5 rounded-full text-sm font-bold">Xác nhận</button>
+            </div>
+            <p class="text-center text-xs text-gray-400 py-2"><i class="fa-solid fa-hand-pointer mr-1"></i>Bấm vào bản
+                đồ để ghim vị trí</p>
+            <div id="coordPickerMap" class="flex-1"></div>
+        </div>
+    </div>
+
+    <!-- AI Chat Modal -->
+    <div id="aiChatModal"
+        class="hidden fixed inset-0 z-[100000] bg-black/60 backdrop-blur-sm flex-col items-end justify-end">
+        <div class="bg-white dark:bg-darkBg w-full rounded-t-3xl shadow-2xl transition-transform transform translate-y-full duration-300 flex flex-col"
+            style="height: calc(100vh - 40px); height: calc(100dvh - 40px);">
+            <!-- Header -->
+            <div
+                class="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-gray-800 flex-shrink-0">
+                <div class="flex items-center gap-3">
+                    <div
+                        class="w-10 h-10 rounded-full bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center text-white shadow-md">
+                        <i class="fa-solid fa-robot text-lg"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-black text-lg text-gray-900 dark:text-white leading-tight">bé Cộng</h3>
+                        <p class="text-xs text-green-500 font-medium tracking-wide flex items-center gap-1">
+                            <span class="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span> Online
+                        </p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button id="closeAiChatModal"
+                        class="w-9 h-9 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700 active:scale-95 transition">
+                        <i class="fa-solid fa-xmark text-lg"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Messages Area -->
+            <div id="aiChatMessages" class="flex-1 overflow-y-auto p-5 space-y-4 bg-gray-50/50 dark:bg-[#18181b]">
+                <!-- Initial greeting -->
+                <div class="flex justify-start mb-2">
+                    <div
+                        class="max-w-[80%] bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 rounded-2xl rounded-tl-sm px-4 py-2.5 text-sm shadow-sm border border-gray-100 dark:border-gray-700">
+                        Hem nhô bồ! 👋 Mình là bé Cộng nè. Bạn muốn ăn chơi nhảy múa ở Kon Tum chỗ nào cứ hỏi mình nha, mình chỉ rành rẽ luôn á! ✨
+                    </div>
+                </div>
+            </div>
+
+            <!-- Input Area -->
+            <div
+                class="p-4 bg-white dark:bg-darkBg border-t border-gray-100 dark:border-gray-800 flex-shrink-0 pb-safe">
+                <form id="aiChatForm" class="flex gap-2 items-end">
+                    <textarea id="aiChatInput" rows="1" placeholder="Hỏi AI về Kon Tum..."
+                        class="flex-1 bg-gray-100 dark:bg-gray-800 border-transparent focus:border-[#ff5500] focus:ring-0 rounded-2xl px-4 py-3 text-sm text-gray-800 dark:text-gray-100 resize-none max-h-32 outline-none"
+                        required></textarea>
+                    <button type="submit" id="aiChatSendBtn"
+                        class="w-11 h-11 bg-[#ff5500] text-white rounded-full flex items-center justify-center flex-shrink-0 shadow-md transition-transform active:scale-95 disabled:opacity-50">
+                        <i class="fa-solid fa-paper-plane"></i>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- TrackAsia GL JS cho bản đồ -->
+    <script src="https://unpkg.com/trackasia-gl@latest/dist/trackasia-gl.js"></script>
+    <link href="https://unpkg.com/trackasia-gl@latest/dist/trackasia-gl.css" rel="stylesheet" />
+
+    <!-- Supabase JS SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <script src="assets/js/config.js"></script>
+    <script src="assets/js/api_service.js"></script>
+    <script src="assets/js/app.js"></script>
+    <script src="assets/js/feed.js"></script>
+    <script src="assets/js/place.js"></script>
+    <script src="assets/js/review.js"></script>
+    <script src="assets/js/profile.js"></script>
+    <script src="assets/js/map.js"></script>
+    <script src="assets/js/admin.js"></script>
+
+    <!-- PWA Service Worker Registration -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js')
+                    .then(registration => {
+                        console.log('SW registered successfully with scope: ', registration.scope);
+                    })
+                    .catch(error => {
+                        console.log('SW registration failed: ', error);
+                    });
+            });
+        }
+    </script>
+</body>
+
+</html>

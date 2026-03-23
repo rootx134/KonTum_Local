@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 250" fill="none">
+  <rect width="300" height="250" fill="#fff5f0" rx="20"/>
+  <circle cx="150" cy="100" r="55" fill="#ffe8da"/>
+  <text x="150" y="115" font-size="50" text-anchor="middle">🎁</text>
+  <text x="150" y="165" font-size="18" font-weight="bold" fill="#ff5500" text-anchor="middle">Tính năng sắp ra mắt</text>
+  <text x="150" y="190" font-size="13" fill="#888" text-anchor="middle">Đổi điểm lấy phần thưởng hấp dẫn!</text>
+</svg>
