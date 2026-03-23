@@ -108,9 +108,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 { count: followersCount }
             ] = await Promise.all([
                 window.supabaseClient.from('profile').select('points').eq('id', user.id).single(),
-                window.supabaseClient.from('likes').select('*', { count: 'exact', head: true }).eq('user_id', user.id).eq('entity_type', 'place'),
+                window.supabaseClient.from('favorite_places').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
                 window.supabaseClient.from('reviews').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
-                window.supabaseClient.from('follows').select('*', { count: 'exact', head: true }).eq('followed_id', user.id)
+                window.supabaseClient.from('followers').select('*', { count: 'exact', head: true }).eq('following_id', user.id)
             ]);
 
             const stats = {

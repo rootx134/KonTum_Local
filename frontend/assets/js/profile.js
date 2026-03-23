@@ -872,7 +872,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!user) return;
 
         try {
-            const res = await fetch(`/ api / interactions.php ? action = get_notifications & user_id=${user.id} `);
+            const res = await fetch(`${window.API_URL || '/api'}/interactions.php?action=get_notifications&user_id=${user.id}`);
             const notifs = await res.json();
             const unread = notifs.filter(n => n.is_read == 0).length;
             if (unread > 0 && notifBadge) {
