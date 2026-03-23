@@ -113,76 +113,100 @@ document.addEventListener('DOMContentLoaded', () => {
                 // 1. Upload ảnh trước (bắt buộc)
                 let uploadedImageUrls = [];
                 if (placeSelectedFiles.length > 0) {
-                    const formDataImage = new FormData();
-                    placeSelectedFiles.forEach(file => formDataImage.append('images[]', file));
+                    for (let file of placeSelectedFiles) {
+                        const ext = file.name.split('.').pop();
+                        const path = `places/${user.id}_${Date.now()}_${Math.random().toString(36).substring(7)}.${ext}`;
+                        
+                        const { data: uploadData, error: uploadError } = await window.supabaseClient.storage
+                            .from('uploads')
+                            .upload(path, file);
 
-                    const uploadRes = await fetch('/api/upload.php', { method: 'POST', body: formDataImage });
-                    const uploadData = await uploadRes.json();
-                    if (uploadData.status === 'success' || uploadData.status === 'partial') {
-                        uploadedImageUrls = uploadData.urls || [];
-                    } else {
-                        throw new Error(uploadData.message || "Lỗi tải ảnh");
+                        if (uploadError) {
+                            throw new Error("Lỗi tải ảnh: " + uploadError.message);
+                        }
+
+                        const { data: { publicUrl } } = window.supabaseClient.storage.from('uploads').getPublicUrl(path);
+                        uploadedImageUrls.push(publicUrl);
                     }
                 }
 
                 // Read real coordinates from coord picker hidden inputs
                 const latVal = document.getElementById('placeLatitude')?.value;
                 const lngVal = document.getElementById('placeLongitude')?.value;
+                
+                // Format cover_image for place record
+                const coverImage = uploadedImageUrls.length > 0 ? uploadedImageUrls[0] : null;
 
-                const res = await fetch('/api/places.php?action=add_place', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        action: 'add_place',
-                        name,
-                        category_id,
-                        address,
-                        description,
+                const { data: placeData, error: placeError } = await window.supabaseClient
+                    .from('places')
+                    .insert([{
+                        name: name,
+                        category_id: parseInt(category_id),
+                        address: address,
+                        description: description,
+                        lat: parseFloat(latVal) || lat,
+                        lng: parseFloat(lngVal) || lng,
                         user_id: user.id,
-                        latitude: latVal ? parseFloat(latVal) : null,
-                        longitude: lngVal ? parseFloat(lngVal) : null,
-                        images: uploadedImageUrls
-                    })
-                });
-                const data = await res.json();
+                        status: 'pending',
+                        cover_image: uploadedImageUrls.length > 0 ? uploadedImageUrls[0] : null
+                    }])
+                    .select();
 
-                if (data.status === 'success') {
-                    showToast(data.message, "success");
+                if (placeError) throw placeError;
 
-                    // Update Points in local storage for instant feedback
-                    user.points = (user.points || 0) + 15;
-                    localStorage.setItem('user_vtkt', JSON.stringify(user));
-
-                    // Sync Profile UI
-                    if (document.getElementById('profilePoints')) {
-                        document.getElementById('profilePoints').textContent = user.points;
+                // Nếu có nhiều ảnh, insert thêm vào bảng place_images
+                if (uploadedImageUrls.length > 1 && placeData && placeData.length > 0) {
+                    const placeId = placeData[0].id;
+                    const additionalImages = uploadedImageUrls.slice(1).map(url => ({
+                        place_id: placeId,
+                        image_url: url
+                    }));
+                    
+                    if (additionalImages.length > 0) {
+                        await window.supabaseClient.from('place_images').insert(additionalImages);
                     }
-                    if (document.getElementById('topBarPoints')) {
-                        document.getElementById('topBarPoints').textContent = user.points;
-                    }
-
-                    // Reset & Close
-                    document.getElementById('placeName').value = '';
-                    document.getElementById('placeAddress').value = '';
-                    document.getElementById('placeDesc').value = '';
-
-                    if (placeImagePreviewContainer) {
-                        const btnUpload = `<label class="w-24 h-24 flex-shrink-0 flex flex-col items-center justify-center bg-gray-50 dark:bg-darkCard border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-2xl cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
-                                <i class="fa-solid fa-camera text-2xl text-gray-400 mb-1"></i>
-                                <span class="text-[10px] font-bold text-gray-500">Tải ảnh lên</span>
-                                <input type="file" id="placeImageInput" accept="image/*" multiple class="hidden">
-                            </label>`;
-                        placeImagePreviewContainer.innerHTML = btnUpload;
-                        placeSelectedFiles = [];
-                        // Re-bind change event by clicking on the new label and trigger old listener 
-                        // It's cleaner to reload the page or let user manually refresh but this will do.
-                        setTimeout(() => location.reload(), 1500);
-                    }
-
-                    closePlaceModal.click();
-                } else {
-                    showToast(data.message, "error");
                 }
+
+                showToast("Thêm địa điểm thành công! Vui lòng chờ duyệt.", "success");
+
+                // Update Points in Supabase Profile
+                const newPoints = (user.points || 0) + 15;
+                const { error: profileError } = await window.supabaseClient
+                    .from('profile')
+                    .update({ points: newPoints })
+                    .eq('id', user.id);
+
+                // Update Points in local storage for instant feedback
+                if (!profileError) {
+                    user.points = newPoints;
+                    localStorage.setItem('user_vtkt', JSON.stringify(user));
+                }
+
+                if (document.getElementById('profilePoints')) {
+                    document.getElementById('profilePoints').textContent = user.points;
+                }
+                if (document.getElementById('topBarPoints')) {
+                    document.getElementById('topBarPoints').textContent = user.points;
+                }
+
+                // Reset & Close
+                document.getElementById('placeName').value = '';
+                document.getElementById('placeAddress').value = '';
+                document.getElementById('placeDesc').value = '';
+
+                if (placeImagePreviewContainer) {
+                    const btnUpload = `<label class="w-24 h-24 flex-shrink-0 flex flex-col items-center justify-center bg-gray-50 dark:bg-darkCard border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-2xl cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+                            <i class="fa-solid fa-camera text-2xl text-gray-400 mb-1"></i>
+                            <span class="text-[10px] font-bold text-gray-500">Tải ảnh lên</span>
+                            <input type="file" id="placeImageInput" accept="image/*" multiple class="hidden">
+                        </label>`;
+                    placeImagePreviewContainer.innerHTML = btnUpload;
+                    placeSelectedFiles = [];
+                    setTimeout(() => location.reload(), 1500);
+                }
+
+                closePlaceModal.click();
+
             } catch (err) {
                 console.error(err);
                 showToast("Lỗi kết nối máy chủ", "error");

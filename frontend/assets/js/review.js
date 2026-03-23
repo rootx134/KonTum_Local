@@ -160,86 +160,89 @@ if (submitReviewBtn) {
         submitReviewBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
 
         try {
-            // 1. Upload Images first (if any)
+            // 1. Upload Images to Supabase first (if any)
             let uploadedUrls = [];
             if (selectedFiles.length > 0) {
-                const formData = new FormData();
-                selectedFiles.forEach(file => {
-                    formData.append('images[]', file);
-                });
+                for (let file of selectedFiles) {
+                    const ext = file.name.split('.').pop();
+                    const path = `reviews/${currentUser.id}_${Date.now()}_${Math.random().toString(36).substring(7)}.${ext}`;
+                    
+                    const { data: uploadData, error: uploadError } = await window.supabaseClient.storage
+                        .from('uploads')
+                        .upload(path, file);
 
-                const uploadRes = await fetch(`${API_URL}/upload.php`, {
-                    method: 'POST',
-                    body: formData
-                });
-                const uploadData = await uploadRes.json();
+                    if (uploadError) {
+                        showToast("Lỗi upload ảnh: " + uploadError.message, "error");
+                        submitReviewBtn.disabled = false;
+                        submitReviewBtn.textContent = 'Đăng';
+                        return;
+                    }
 
-                if (uploadData.status === 'success' || uploadData.status === 'partial') {
-                    uploadedUrls = uploadData.urls;
-                } else {
-                    showToast("Lỗi upload ảnh: " + uploadData.message, "error");
-                    submitReviewBtn.disabled = false;
-                    submitReviewBtn.textContent = 'Đăng';
-                    return;
+                    const { data: { publicUrl } } = window.supabaseClient.storage.from('uploads').getPublicUrl(path);
+                    uploadedUrls.push(publicUrl);
                 }
             }
 
             // 2. Submit Review Data
-            const reviewRes = await fetch(`${API_URL}/interactions.php`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    action: 'add_review',
+            const { data: reviewData, error: reviewError } = await window.supabaseClient
+                .from('reviews')
+                .insert([{
                     place_id: placeId,
                     user_id: currentUser.id,
-                    rating: rating,
+                    rating: parseInt(rating),
                     content: content,
-                    images: uploadedUrls
-                })
-            });
-            const reviewData = await reviewRes.json();
+                    images: JSON.stringify(uploadedUrls),
+                    is_approved: 1
+                }])
+                .select();
 
-            if (reviewData.status === 'success') {
-                showToast(reviewData.message, "success");
+            if (reviewError) throw reviewError;
 
-                // Update Points in local storage for instant feedback
-                currentUser.points = (currentUser.points || 0) + 10;
+            showToast("Đăng đánh giá thành công!", "success");
+
+            // Update Points in Supabase Profile
+            const newPoints = (currentUser.points || 0) + 10;
+            const { error: profileError } = await window.supabaseClient
+                .from('profile')
+                .update({ points: newPoints })
+                .eq('id', currentUser.id);
+
+            // Update Points in local storage for instant feedback
+            if (!profileError) {
+                currentUser.points = newPoints;
                 localStorage.setItem('user_vtkt', JSON.stringify(currentUser));
-
-                // Sync Profile UI
-                if (document.getElementById('profilePoints')) {
-                    document.getElementById('profilePoints').textContent = currentUser.points;
-                }
-                if (document.getElementById('topBarPoints')) {
-                    document.getElementById('topBarPoints').textContent = currentUser.points;
-                }
-                if (document.getElementById('rewardsTabPoints')) {
-                    document.getElementById('rewardsTabPoints').textContent = currentUser.points;
-                }
-
-                // Reset Form
-                document.getElementById('reviewForm').reset();
-                document.getElementById('reviewRatingInput').value = "0";
-                document.querySelectorAll('#starRatingSystem i').forEach(s => {
-                    s.classList.replace('fa-solid', 'fa-regular');
-                    s.classList.replace('text-yellow-400', 'text-gray-300');
-                });
-                document.querySelectorAll('.remove-img-btn').forEach(btn => btn.click());
-                selectedFiles = [];
-
-                // Close modal and refresh feed
-                closeReviewModal.click();
-                setTimeout(() => {
-                    if (typeof loadFeed === 'function') loadFeed();
-                    if (typeof loadHomePlaces === 'function') loadHomePlaces();
-                }, 500);
-
-            } else {
-                showToast(reviewData.message, "error");
             }
 
+            // Sync Profile UI
+            if (document.getElementById('profilePoints')) {
+                document.getElementById('profilePoints').textContent = currentUser.points;
+            }
+            if (document.getElementById('topBarPoints')) {
+                document.getElementById('topBarPoints').textContent = currentUser.points;
+            }
+            if (document.getElementById('rewardsTabPoints')) {
+                document.getElementById('rewardsTabPoints').textContent = currentUser.points;
+            }
+
+            // Reset Form
+            document.getElementById('reviewForm').reset();
+            document.getElementById('reviewRatingInput').value = "0";
+            document.querySelectorAll('#starRatingSystem i').forEach(s => {
+                s.classList.replace('fa-solid', 'fa-regular');
+                s.classList.replace('text-yellow-400', 'text-gray-300');
+            });
+            document.querySelectorAll('.remove-img-btn').forEach(btn => btn.click());
+            selectedFiles = [];
+
+            // Close modal and refresh feed
+            closeReviewModal.click();
+            setTimeout(() => {
+                if (typeof loadFeed === 'function') loadFeed();
+                if (typeof loadHomePlaces === 'function') loadHomePlaces();
+            }, 500);
+
         } catch (err) {
-            console.error(err);
+            console.error("Submit review error:", err);
             showToast("Lỗi kết nối máy chủ", "error");
         } finally {
             submitReviewBtn.disabled = false;
