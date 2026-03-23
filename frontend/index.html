@@ -457,13 +457,16 @@
                         <form id="profileLoginForm" class="w-full space-y-4 text-left">
                             <div class="relative">
                                 <i class="fa-regular fa-user absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
-                                <input type="email" id="profileLoginUsername" placeholder="Email"
+                                <input type="text" id="profileLoginUsername" placeholder="Email hoặc Tên đăng nhập"
                                     class="w-full pl-11 pr-4 py-3.5 bg-gray-50 dark:bg-gray-800 border-transparent rounded-2xl focus:ring-2 focus:ring-[#ff5500] focus:bg-white dark:focus:bg-gray-700 transition-all outline-none font-medium text-sm">
                             </div>
                             <div class="relative">
                                 <i class="fa-solid fa-lock absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
                                 <input type="password" id="profileLoginPassword" placeholder="Mật khẩu"
-                                    class="w-full pl-11 pr-4 py-3.5 bg-gray-50 dark:bg-gray-800 border-transparent rounded-2xl focus:ring-2 focus:ring-[#ff5500] focus:bg-white dark:focus:bg-gray-700 transition-all outline-none font-medium text-sm">
+                                    class="w-full pl-11 pr-12 py-3.5 bg-gray-50 dark:bg-gray-800 border-transparent rounded-2xl focus:ring-2 focus:ring-[#ff5500] focus:bg-white dark:focus:bg-gray-700 transition-all outline-none font-medium text-sm">
+                                <button type="button" class="toggle-password absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none">
+                                    <i class="fa-regular fa-eye"></i>
+                                </button>
                             </div>
                             <div class="flex items-center justify-end w-full pb-1">
                                 <button type="button" id="forgotPasswordLinkBtn" class="text-xs font-semibold text-[#ff5500] hover:text-[#e64d00] transition-colors focus:outline-none">Quên mật khẩu?</button>
@@ -479,17 +482,25 @@
                             <div class="relative">
                                 <i class="fa-regular fa-id-card absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
                                 <input type="text" id="profileRegFullname" placeholder="Họ và tên"
-                                    class="w-full pl-11 pr-4 py-3.5 bg-gray-50 dark:bg-gray-800 border-transparent rounded-2xl focus:ring-2 focus:ring-[#ff5500] focus:bg-white dark:focus:bg-gray-700 transition-all outline-none font-medium text-sm">
+                                    class="w-full pl-11 pr-4 py-3.5 bg-gray-50 dark:bg-gray-800 border-transparent rounded-2xl focus:ring-2 focus:ring-[#ff5500] focus:bg-white dark:focus:bg-gray-700 transition-all outline-none font-medium text-sm" required>
                             </div>
                             <div class="relative">
-                                <i class="fa-regular fa-user absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
-                                <input type="email" id="profileRegUsername" placeholder="Email"
-                                    class="w-full pl-11 pr-4 py-3.5 bg-gray-50 dark:bg-gray-800 border-transparent rounded-2xl focus:ring-2 focus:ring-[#ff5500] focus:bg-white dark:focus:bg-gray-700 transition-all outline-none font-medium text-sm">
+                                <i class="fa-solid fa-at absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                                <input type="text" id="profileRegUsername" placeholder="Tên đăng nhập (viết liền không dấu)"
+                                    class="w-full pl-11 pr-4 py-3.5 bg-gray-50 dark:bg-gray-800 border-transparent rounded-2xl focus:ring-2 focus:ring-[#ff5500] focus:bg-white dark:focus:bg-gray-700 transition-all outline-none font-medium text-sm" required>
+                            </div>
+                            <div class="relative">
+                                <i class="fa-regular fa-envelope absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                                <input type="email" id="profileRegEmail" placeholder="Email"
+                                    class="w-full pl-11 pr-4 py-3.5 bg-gray-50 dark:bg-gray-800 border-transparent rounded-2xl focus:ring-2 focus:ring-[#ff5500] focus:bg-white dark:focus:bg-gray-700 transition-all outline-none font-medium text-sm" required>
                             </div>
                             <div class="relative">
                                 <i class="fa-solid fa-lock absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
                                 <input type="password" id="profileRegPassword" placeholder="Mật khẩu"
-                                    class="w-full pl-11 pr-4 py-3.5 bg-gray-50 dark:bg-gray-800 border-transparent rounded-2xl focus:ring-2 focus:ring-[#ff5500] focus:bg-white dark:focus:bg-gray-700 transition-all outline-none font-medium text-sm">
+                                    class="w-full pl-11 pr-12 py-3.5 bg-gray-50 dark:bg-gray-800 border-transparent rounded-2xl focus:ring-2 focus:ring-[#ff5500] focus:bg-white dark:focus:bg-gray-700 transition-all outline-none font-medium text-sm" required>
+                                <button type="button" class="toggle-password absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none">
+                                    <i class="fa-regular fa-eye"></i>
+                                </button>
                             </div>
                             <button type="submit"
                                 class="w-full bg-gradient-to-r flex justify-center items-center gap-2 from-[#ff5500] to-[#ff8c00] hover:to-[#e64d00] text-white font-bold py-3.5 rounded-2xl shadow-md transition transform active:scale-95 text-sm">

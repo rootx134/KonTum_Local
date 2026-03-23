@@ -114,6 +114,15 @@ CREATE TABLE likes (
     UNIQUE(user_id, review_id)
 );
 
+-- 8b. Bảng bình luận (comments)
+CREATE TABLE comments (
+    id SERIAL PRIMARY KEY,
+    user_id UUID REFERENCES profile(id) ON DELETE CASCADE,
+    review_id INTEGER REFERENCES reviews(id) ON DELETE CASCADE,
+    content TEXT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
 -- 9. Bảng theo dõi người dùng (followers)
 CREATE TABLE followers (
     id SERIAL PRIMARY KEY,

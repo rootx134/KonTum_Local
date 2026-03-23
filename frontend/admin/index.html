@@ -114,11 +114,14 @@
                     <form id="adminLoginForm" class="space-y-5">
                         <div class="relative">
                             <i class="fa-solid fa-user absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400"></i>
-                            <input type="text" id="adminUsername" placeholder="Tên đăng nhập" class="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all font-medium text-slate-800" required>
+                            <input type="text" id="adminUsername" placeholder="Email hoặc Tên đăng nhập" class="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all font-medium text-slate-800" required>
                         </div>
                         <div class="relative">
                             <i class="fa-solid fa-lock absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400"></i>
-                            <input type="password" id="adminPassword" placeholder="Mật khẩu" class="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all font-medium text-slate-800" required>
+                            <input type="password" id="adminPassword" placeholder="Mật khẩu" class="w-full pl-11 pr-12 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all font-medium text-slate-800" required>
+                            <button type="button" class="toggle-password absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none">
+                                <i class="fa-regular fa-eye"></i>
+                            </button>
                         </div>
                         <button type="submit" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3.5 rounded-xl transition-all elevate shadow-lg hover:shadow-xl mt-2 flex justify-center items-center gap-2">
                             Mở Khóa <i class="fa-solid fa-arrow-right"></i>
@@ -362,16 +365,43 @@
                 initDashboard();
             }
 
+            // Toggle password visibility for admin
+            document.addEventListener('click', function (e) {
+                const toggleBtn = e.target.closest('.toggle-password');
+                if (toggleBtn) {
+                    const input = toggleBtn.parentElement.querySelector('input');
+                    const icon = toggleBtn.querySelector('i');
+                    if (input.type === 'password') {
+                        input.type = 'text';
+                        icon.classList.remove('fa-eye');
+                        icon.classList.add('fa-eye-slash');
+                    } else {
+                        input.type = 'password';
+                        icon.classList.remove('fa-eye-slash');
+                        icon.classList.add('fa-eye');
+                    }
+                }
+            });
+
             document.getElementById('adminLoginForm').addEventListener('submit', async (e) => {
                 e.preventDefault();
-                const u = document.getElementById('adminUsername').value;
+                const u = document.getElementById('adminUsername').value.trim();
                 const p = document.getElementById('adminPassword').value;
                 const btn = e.target.querySelector('button');
                 btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Chờ...';
                 
                 try {
+                    let loginEmail = u;
+                    if (!u.includes('@')) {
+                        const { data: emailData, error: emailErr } = await window.supabaseClient.rpc('get_email_by_username', { p_username: u });
+                        if (emailErr || !emailData) {
+                            throw new Error("Tên đăng nhập không tồn tại hoặc lỗi kết nối");
+                        }
+                        loginEmail = emailData;
+                    }
+
                     const { data, error } = await window.supabaseClient.auth.signInWithPassword({
-                        email: u,
+                        email: loginEmail,
                         password: p
                     });
                     if (error) throw error;

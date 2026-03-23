@@ -522,15 +522,24 @@ if (backToLoginBtn) {
 if (profileLoginForm) {
     profileLoginForm.addEventListener('submit', async (e) => {
         e.preventDefault();
-        const u = document.getElementById('profileLoginUsername').value;
+        const u = document.getElementById('profileLoginUsername').value.trim();
         const p = document.getElementById('profileLoginPassword').value;
         const btn = profileLoginForm.querySelector('button[type="submit"]');
         btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang xử lý...';
         btn.disabled = true;
 
         try {
+            let loginEmail = u;
+            if (!u.includes('@')) {
+                const { data: emailData, error: emailErr } = await window.supabaseClient.rpc('get_email_by_username', { p_username: u });
+                if (emailErr || !emailData) {
+                    throw new Error("Tên đăng nhập không tồn tại hoặc lỗi kết nối");
+                }
+                loginEmail = emailData;
+            }
+
             const { data, error } = await window.supabaseClient.auth.signInWithPassword({
-                email: u,
+                email: loginEmail,
                 password: p
             });
             if (error) throw error;
@@ -554,32 +563,34 @@ if (profileLoginForm) {
 if (profileRegisterForm) {
     profileRegisterForm.addEventListener('submit', async (e) => {
         e.preventDefault();
-        const f = document.getElementById('profileRegFullname').value;
-        const u = document.getElementById('profileRegUsername').value;
+        const f = document.getElementById('profileRegFullname').value.trim();
+        const u = document.getElementById('profileRegUsername').value.trim();
+        const eMail = document.getElementById('profileRegEmail').value.trim();
         const p = document.getElementById('profileRegPassword').value;
         const btn = profileRegisterForm.querySelector('button[type="submit"]');
+
+        if (!/^[a-zA-Z0-9_]+$/.test(u)) {
+            if (typeof showToast === 'function') showToast("Tên đăng nhập chỉ gồm chữ cái, số và gạch dưới (viết liền không dấu)", "error");
+            return;
+        }
+
         btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang xử lý...';
         btn.disabled = true;
 
         try {
             const { data, error } = await window.supabaseClient.auth.signUp({
-                email: u,
+                email: eMail,
                 password: p,
                 options: {
                     data: {
-                        fullname: f,
-                        username: u,
-                        points: 0,
-                        is_admin: 0
+                        full_name: f,
+                        username: u
                     }
                 }
             });
             if (error) throw error;
             
             if (data.user) {
-                const { data: profile } = await window.supabaseClient.from('profile').select('*').eq('id', data.user.id).single();
-                const userData = { ...data.user, ...(profile || { fullname: f, username: u, points: 0, is_admin: 0 }) };
-                localStorage.setItem('user_vtkt', JSON.stringify(userData));
                 if (typeof showToast === 'function') showToast("Đăng ký thành công!", "success");
                 setTimeout(() => window.location.reload(), 500);
             }
@@ -592,6 +603,24 @@ if (profileRegisterForm) {
         }
     });
 }
+
+// Toggle password visibility
+document.addEventListener('click', function (e) {
+    const toggleBtn = e.target.closest('.toggle-password');
+    if (toggleBtn) {
+        const input = toggleBtn.parentElement.querySelector('input');
+        const icon = toggleBtn.querySelector('i');
+        if (input.type === 'password') {
+            input.type = 'text';
+            icon.classList.remove('fa-eye');
+            icon.classList.add('fa-eye-slash');
+        } else {
+            input.type = 'password';
+            icon.classList.remove('fa-eye-slash');
+            icon.classList.add('fa-eye');
+        }
+    }
+});
 
 if (profileForgotPasswordForm) {
     profileForgotPasswordForm.addEventListener('submit', async (e) => {
