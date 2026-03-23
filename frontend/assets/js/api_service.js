@@ -30,7 +30,10 @@ window.apiService = {
             place_name: r.places?.name || 'Unknown',
             place_thumbnail: r.places?.thumbnail || 'default_place.jpg',
             like_count: r.likes?.length || 0,
+            likes_count: r.likes?.length || 0,
+            total_likes: r.likes?.length || 0,
             comment_count: r.comments?.length || 0,
+            total_comments: r.comments?.length || 0,
             is_liked: userId ? r.likes?.some(l => l.user_id == userId) : false
         }));
     },
@@ -54,7 +57,10 @@ window.apiService = {
             fullname: r.profile?.fullname || 'Ẩn danh',
             avatar: r.profile?.avatar || 'default_avatar.png',
             like_count: r.likes?.length || 0,
+            likes_count: r.likes?.length || 0,
+            total_likes: r.likes?.length || 0,
             comment_count: r.comments?.length || 0,
+            total_comments: r.comments?.length || 0,
             is_liked: userId ? r.likes?.some(l => l.user_id == userId) : false
         }));
     },
@@ -340,8 +346,39 @@ window.apiService = {
         const { error } = await window.supabaseClient.from('place_images').delete().eq('id', imageId);
         if (error) return { status: 'error', message: 'Lỗi xoá ảnh' };
         return { status: 'success', message: 'Xoá ảnh thành công' };
+    },
+
+    /**
+     * REALTIME INTERACTIONS
+     * Lắng nghe database realtime để cập nhật số đếm tim/comments
+     */
+    initRealtimeInteractions: function() {
+        if (!window.supabaseClient) return;
+
+        console.log("Initializing Supabase Realtime for Interactions...");
+        const channel = window.supabaseClient.channel('public:interactions')
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'likes' }, payload => {
+                window.dispatchEvent(new CustomEvent('review_liked', { detail: { review_id: payload.new.review_id, user_id: payload.new.user_id } }));
+            })
+            .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'likes' }, payload => {
+                window.dispatchEvent(new CustomEvent('review_unliked', { detail: { review_id: payload.old.review_id, user_id: payload.old.user_id } }));
+            })
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'comments' }, payload => {
+                window.dispatchEvent(new CustomEvent('review_commented', { detail: { review_id: payload.new.review_id, user_id: payload.new.user_id } }));
+            })
+            .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'comments' }, payload => {
+                window.dispatchEvent(new CustomEvent('review_uncommented', { detail: { review_id: payload.old.review_id, user_id: payload.old.user_id } }));
+            })
+            .subscribe();
     }
 };
+
+// Gọi init realtime khi script được load (nếu supabaseClient đã ready, nếu không có thể để main.js gọi)
+document.addEventListener('DOMContentLoaded', () => {
+    if (window.apiService && typeof window.apiService.initRealtimeInteractions === 'function') {
+        window.apiService.initRealtimeInteractions();
+    }
+});
 
 // Fetch Interceptor for Supabase
 const originalFetch = window.fetch;
@@ -485,7 +522,10 @@ window.fetch = async function(resource, config) {
                         fullname: r.profile?.fullname || 'Ẩn danh',
                         avatar: r.profile?.avatar || 'default_avatar.png',
                         like_count: r.likes?.length || 0,
-                        comment_count: r.comments?.length || 0
+                        likes_count: r.likes?.length || 0,
+                        total_likes: r.likes?.length || 0,
+                        comment_count: r.comments?.length || 0,
+                        total_comments: r.comments?.length || 0
                     }));
                     return new Response(JSON.stringify(enriched));
                 }

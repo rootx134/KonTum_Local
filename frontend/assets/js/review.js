@@ -154,7 +154,7 @@ if (submitReviewBtn) {
 
         if (!placeId) { showToast("Vui lòng chọn địa điểm!", "error"); return; }
         if (rating == 0) { showToast("Vui lòng chọn số sao đánh giá!", "error"); return; }
-        if (!content.trim()) { showToast("Vui lòng nhập nội dung đánh giá!", "error"); return; }
+        if (!content.trim() || content.trim().length < 10) { showToast("Vui lòng nhập trải nghiệm của bạn (ít nhất 10 ký tự)!", "error"); return; }
 
         submitReviewBtn.disabled = true;
         submitReviewBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
@@ -168,7 +168,7 @@ if (submitReviewBtn) {
                     const path = `reviews/${currentUser.id}_${Date.now()}_${Math.random().toString(36).substring(7)}.${ext}`;
                     
                     const { data: uploadData, error: uploadError } = await window.supabaseClient.storage
-                        .from('uploads')
+                        .from('places')
                         .upload(path, file);
 
                     if (uploadError) {
@@ -178,7 +178,7 @@ if (submitReviewBtn) {
                         return;
                     }
 
-                    const { data: { publicUrl } } = window.supabaseClient.storage.from('uploads').getPublicUrl(path);
+                    const { data: { publicUrl } } = window.supabaseClient.storage.from('places').getPublicUrl(path);
                     uploadedUrls.push(publicUrl);
                 }
             }
@@ -239,6 +239,11 @@ if (submitReviewBtn) {
             setTimeout(() => {
                 if (typeof loadFeed === 'function') loadFeed();
                 if (typeof loadHomePlaces === 'function') loadHomePlaces();
+                
+                // Refresh place details reviews if inside place detail (the modal is probably still open)
+                if (typeof loadPlaceReviews === 'function') {
+                    loadPlaceReviews(placeId);
+                }
             }, 500);
 
         } catch (err) {

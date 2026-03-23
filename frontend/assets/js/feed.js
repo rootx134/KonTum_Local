@@ -20,33 +20,64 @@ document.addEventListener('DOMContentLoaded', () => {
         return `${Math.floor(days / 365)} năm trước`;
     };
 
+    // --- Realtime Listeners ---
+    function isMyAction(payloadUserId) {
+        const user = JSON.parse(localStorage.getItem('user_vtkt'));
+        return user && user.id == payloadUserId;
+    }
+
+    window.addEventListener('review_liked', (e) => {
+        if (isMyAction(e.detail.user_id)) return;
+        document.querySelectorAll(`[data-like-count-id="${e.detail.review_id}"]`).forEach(span => {
+            span.textContent = parseInt(span.textContent || 0) + 1;
+        });
+    });
+
+    window.addEventListener('review_unliked', (e) => {
+        if (isMyAction(e.detail.user_id)) return;
+        document.querySelectorAll(`[data-like-count-id="${e.detail.review_id}"]`).forEach(span => {
+            span.textContent = Math.max(0, parseInt(span.textContent || 0) - 1);
+        });
+    });
+
+    window.addEventListener('review_commented', (e) => {
+        if (isMyAction(e.detail.user_id)) return;
+        document.querySelectorAll(`[data-comment-count-id="${e.detail.review_id}"]`).forEach(span => {
+            span.textContent = parseInt(span.textContent || 0) + 1;
+        });
+    });
+
+    window.addEventListener('review_uncommented', (e) => {
+        if (isMyAction(e.detail.user_id)) return;
+        document.querySelectorAll(`[data-comment-count-id="${e.detail.review_id}"]`).forEach(span => {
+            span.textContent = Math.max(0, parseInt(span.textContent || 0) - 1);
+        });
+    });
+
     // --- Render Explore Feed (Reviews/Posts) ---
     async function loadFeed() {
         if (!feedContainer) return;
         try {
             const user = JSON.parse(localStorage.getItem('user_vtkt'));
             const uid = user ? user.id : 0;
-            const res = await fetch(`${API_URL}/places.php?action=get_feed&user_id=${uid}`);
-            let data = await res.json();
+            
+            let data = await window.apiService.getFeed(uid);
+            
+            if (uid > 0 && Array.isArray(data)) {
+                try {
+                    const followingIds = await window.apiService.getFollowing(uid);
+                    if (followingIds && followingIds.length > 0) {
+                        const strFollowingIds = followingIds.map(id => String(id));
+                        const followedReviews = data.filter(r => strFollowingIds.includes(String(r.user_id)));
+                        const otherReviews = data.filter(r => !strFollowingIds.includes(String(r.user_id)));
+                        data = [...followedReviews, ...otherReviews];
+                    }
+                } catch (e) {
+                    console.log("Error sorting feed by followers", e);
+                }
+            }
 
             if (Array.isArray(data)) {
-                // 🚀 Logic: Ưu tiên hiển thị Review của Người đang theo dõi lên đầu mục Khám Phá
-                if (uid > 0) {
-                    try {
-                        const followRes = await fetch(`${API_URL}/interactions.php?action=get_following&user_id=${uid}`);
-                        const followInfo = await followRes.json();
-
-                        if (followInfo.status === 'success' && followInfo.data) {
-                            const followingIds = followInfo.data.map(u => String(u.id));
-                            const followedReviews = data.filter(r => followingIds.includes(String(r.user_id)));
-                            const otherReviews = data.filter(r => !followingIds.includes(String(r.user_id)));
-                            data = [...followedReviews, ...otherReviews]; // Sort: ưu tiên list follwing
-                        }
-                    } catch (e) {
-                        console.log("Error sorting feed by followers", e);
-                    }
-                }
-
                 renderFeed(data);
             }
         } catch (err) {
@@ -102,13 +133,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 ${imageHtml}
                 
                 <div class="flex items-center gap-6 mt-4 pt-3 border-t border-gray-50 dark:border-white/5">
-                    <button class="flex items-center gap-2 ${likeColor} text-sm font-bold group" onclick="window.toggleLikeReview(this, ${review.id})">
-                        <i class="${(review.liked_by_me == 1) ? 'fa-solid' : 'fa-regular'} fa-heart group-hover:scale-110 transition-transform"></i>
-                        <span>${review.total_likes}</span>
+                    <button data-like-btn-id="${review.id}" class="flex items-center gap-2 ${likeColor} text-sm font-bold group" onclick="window.toggleLikeReview(this, ${review.id})">
+                        <i data-like-icon-id="${review.id}" class="${(review.liked_by_me == 1 || review.is_liked) ? 'fa-solid' : 'fa-regular'} fa-heart group-hover:scale-110 transition-transform"></i>
+                        <span data-like-count-id="${review.id}">${review.total_likes !== undefined ? review.total_likes : review.like_count}</span>
                     </button>
                     <button class="flex items-center gap-2 text-gray-400 text-sm font-bold group" onclick="window.openComments(${review.id})">
                         <i class="fa-regular fa-comment-dots group-hover:scale-110 transition-transform"></i>
-                        <span>${review.total_comments}</span>
+                        <span data-comment-count-id="${review.id}">${review.total_comments !== undefined ? review.total_comments : review.comment_count}</span>
                     </button>
                     <div class="flex gap-4 ml-auto">
                         <button class="flex items-center gap-2 ${review.saved_by_me ? 'text-red-500' : 'text-gray-400'} text-sm font-bold active:text-red-500 group" onclick="window.toggleSaveReview(this, ${review.id})">
@@ -510,12 +541,12 @@ document.addEventListener('DOMContentLoaded', () => {
                                     
                                     <div class="flex items-center gap-4 mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
                                         <button onclick="window.toggleReviewLikeInDetail(${r.id}, this)" class="flex items-center gap-1.5 text-xs font-bold transition hover:opacity-80">
-                                            <i class="${isLiked} fa-heart text-base"></i>
-                                            <span class="${(r.liked_by_me == 1) ? 'text-red-500' : 'text-gray-500'}">${likesCount}</span>
+                                            <i data-like-icon-id="${r.id}" class="${isLiked} fa-heart text-base"></i>
+                                            <span data-like-count-id="${r.id}" class="${(r.liked_by_me == 1) ? 'text-red-500' : 'text-gray-500'}">${likesCount}</span>
                                         </button>
                                         <button onclick="window.openReviewComments(${r.id})" class="flex items-center gap-1.5 text-xs font-bold text-gray-500 transition hover:text-blue-500">
                                             <i class="fa-regular fa-comment text-base"></i>
-                                            <span>${commentsCount}</span>
+                                            <span data-comment-count-id="${r.id}">${commentsCount}</span>
                                         </button>
                                         <div class="flex gap-4 ml-auto">
                                             <button class="flex items-center gap-2 ${r.saved_by_me ? 'text-red-500' : 'text-gray-400'} text-xs font-bold active:text-red-500 group" onclick="window.toggleSaveReview(this, ${r.id})">
@@ -971,6 +1002,11 @@ if (commentForm) {
             if (data.status === 'success') {
                 commentInput.value = '';
                 await loadComments(reviewId);
+                
+                // Optimistically update comment count everywhere
+                document.querySelectorAll(`[data-comment-count-id="${reviewId}"]`).forEach(span => {
+                    span.textContent = parseInt(span.textContent || 0) + 1;
+                });
             }
         } catch (e) { }
         finally {
@@ -989,29 +1025,44 @@ window.toggleLikeReview = async (btn, reviewId) => {
     }
 
     try {
-        const res = await fetch(`${API_URL}/interactions.php`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'toggle_like', user_id: user.id, review_id: reviewId })
-        });
-        const data = await res.json();
-        if (data.status === 'success') {
-            const icon = btn.querySelector('i');
-            const span = btn.querySelector('span');
-            let count = parseInt(span.textContent);
+        const res = await window.apiService.toggleLike(user.id, reviewId);
+        if (res.status === 'success') {
+            const btns = document.querySelectorAll(`[data-like-btn-id="${reviewId}"]`);
+            // include the clicked btn explicitly if missing from query
+            const elementsToUpdate = Array.from(new Set([...Array.from(btns), btn]));
 
-            if (data.liked) {
-                icon.classList.replace('fa-regular', 'fa-solid');
-                btn.classList.add('text-[#ff5500]');
-                btn.classList.remove('text-gray-400');
-                count++;
-            } else {
-                icon.classList.replace('fa-solid', 'fa-regular');
-                btn.classList.remove('text-[#ff5500]');
-                btn.classList.add('text-gray-400');
-                count--;
-            }
-            span.textContent = count;
+            elementsToUpdate.forEach(b => {
+                const icon = b.querySelector(`[data-like-icon-id="${reviewId}"]`) || b.querySelector('i');
+                const span = b.querySelector(`[data-like-count-id="${reviewId}"]`) || b.querySelector('span');
+                let count = parseInt(span.textContent || "0");
+
+                if (res.liked) {
+                    icon.classList.replace('fa-regular', 'fa-solid');
+                    b.classList.add('text-[#ff5500]');
+                    b.classList.remove('text-gray-400');
+                    
+                    // Detail view logic specifically
+                    icon.classList.remove('text-gray-500');
+                    icon.classList.add('text-red-500');
+                    span.classList.remove('text-gray-500');
+                    span.classList.add('text-red-500');
+
+                    count++;
+                } else {
+                    icon.classList.replace('fa-solid', 'fa-regular');
+                    b.classList.remove('text-[#ff5500]');
+                    b.classList.add('text-gray-400');
+                    
+                    // Detail view logic specifically
+                    icon.classList.remove('text-red-500');
+                    icon.classList.add('text-gray-500');
+                    span.classList.remove('text-red-500');
+                    span.classList.add('text-gray-500');
+                    
+                    count = Math.max(0, count - 1);
+                }
+                span.textContent = count;
+            });
         }
     } catch (e) { console.error(e); }
 };
