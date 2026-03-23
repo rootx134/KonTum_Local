@@ -645,3 +645,27 @@ if (!localStorage.getItem('location_asked')) {
         navigator.geolocation.getCurrentPosition(() => { }, () => { });
     }
 }
+
+// --- Social Login ---
+const googleLoginBtn = document.getElementById('googleLoginBtn');
+if (googleLoginBtn) {
+    googleLoginBtn.addEventListener('click', async () => {
+        try {
+            const { error } = await window.supabaseClient.auth.signInWithOAuth({
+                provider: 'google',
+            });
+            if (error) throw error;
+        } catch (error) {
+            console.error('Lỗi đăng nhập Google:', error);
+            if (typeof showToast === 'function') showToast("Đăng nhập bằng Google thất bại.", "error");
+        }
+    });
+}
+
+const facebookLoginBtn = document.getElementById('facebookLoginBtn');
+if (facebookLoginBtn) {
+    facebookLoginBtn.addEventListener('click', async () => {
+        if (typeof showToast === 'function') showToast("Facebook login đang đăng ký App. Vui lòng thử lại sau.", "warning");
+    });
+}
+
